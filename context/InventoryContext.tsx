@@ -16,6 +16,11 @@ interface InventoryContextType {
     setInitialData: (products: Product[], stock: Stock[], movements: Movement[]) => void;
     findProductById: (productId: string) => Product | undefined;
     clearAllData: () => void;
+    
+    // Funciones CRUD para Productos
+    addProduct: (product: Product) => Promise<void>;
+    updateProduct: (product: Product) => Promise<void>;
+    deleteProduct: (productId: string) => Promise<void>;
 
     // Funciones CRUD para Ubicaciones
     addLocation: (location: Omit<Location, 'id'>) => void;
@@ -149,6 +154,49 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     const findProductById = useCallback((productId: string) => products.find(p => p.id_venta === productId), [products]);
 
+    // ---- FUNCIONES CRUD PARA PRODUCTOS ----
+    const addProduct = useCallback(async (product: Product) => {
+        try {
+            await fetch('/api/products', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(product)
+            });
+            setProducts(prev => {
+                const exists = prev.some(p => p.id_venta === product.id_venta);
+                if (exists) {
+                    return prev.map(p => p.id_venta === product.id_venta ? product : p);
+                }
+                return [...prev, product];
+            });
+        } catch (error) {
+            console.error('Error adding product:', error);
+        }
+    }, []);
+
+    const updateProduct = useCallback(async (product: Product) => {
+        try {
+            await fetch('/api/products', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(product)
+            });
+            setProducts(prev => prev.map(p => p.id_venta === product.id_venta ? product : p));
+        } catch (error) {
+            console.error('Error updating product:', error);
+        }
+    }, []);
+
+    const deleteProduct = useCallback(async (productId: string) => {
+        try {
+            await fetch(`/api/products/${productId}`, { method: 'DELETE' });
+            setProducts(prev => prev.filter(p => p.id_venta !== productId));
+            setStock(prev => prev.filter(s => s.productId !== productId));
+        } catch (error) {
+            console.error('Error deleting product:', error);
+        }
+    }, []);
+
     // ---- FUNCIONES CRUD PARA UBICACIONES ----
     const addLocation = useCallback(async (locationData: Omit<Location, 'id'>) => {
         const id = generateId('loc');
@@ -243,6 +291,7 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
         <InventoryContext.Provider value={{ 
             products, stock, movements, locations, users, 
             addMovement, updateStock, setInitialData, findProductById, clearAllData,
+            addProduct, updateProduct, deleteProduct,
             addLocation, updateLocation, deleteLocation,
             addUser, updateUser, deleteUser
         }}>

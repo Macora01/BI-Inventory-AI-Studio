@@ -68,7 +68,7 @@ export const parseTransferCSV = (csvContent: string): ParsedTransfer[] => {
 export const parseSalesCSV = (csvContent: string): ParsedSale[] => {
     const lines = csvContent.trim().split('\n');
     const headers = lines[0].split(',').map(h => h.trim());
-    const expectedHeaders = ['timestamp', 'lugar', 'cod_fabrica', 'cod_venta', 'description', 'precio'];
+    const expectedHeaders = ['timestamp', 'lugar', 'cod_fabrica', 'cod_venta', 'description', 'precio', 'qty'];
     
     if (JSON.stringify(headers) !== JSON.stringify(expectedHeaders)) {
         throw new Error(`Cabeceras de CSV de ventas inválidas. Esperado: ${expectedHeaders.join(',')}, Recibido: ${headers.join(',')}`);
@@ -83,6 +83,7 @@ export const parseSalesCSV = (csvContent: string): ParsedSale[] => {
             cod_venta: values[3].trim(),
             description: values[4].trim(),
             precio: parseInt(values[5].trim(), 10) || 0,
+            qty: parseInt(values[6].trim(), 10) || 1,
         };
     });
 };

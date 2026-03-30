@@ -87,6 +87,7 @@ export interface ParsedSale {
   cod_venta: string;
   description: string;
   precio: number;
+  qty: number;
 }
 
 export interface GeminiInsight {

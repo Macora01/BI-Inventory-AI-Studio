@@ -137,6 +137,16 @@ app.post('/api/products', async (req, res) => {
   }
 });
 
+app.delete('/api/products/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM products WHERE id_venta = $1', [req.params.id]);
+    await pool.query('DELETE FROM stock WHERE productId = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 // Locations
 app.get('/api/locations', async (req, res) => {
   try {
