@@ -1,0 +1,5 @@
+{
+  "name": "Boa Ideia Inventory Management",
+  "description": "A comprehensive inventory management application for tracking products, managing stock across multiple locations, generating reports, and providing AI-powered insights with Gemini. It features real-time stock control, product traceability, and an executive dashboard.",
+  "requestFramePermissions": []
+}
