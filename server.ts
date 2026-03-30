@@ -16,6 +16,10 @@ const app = express();
 const PORT = 3000;
 
 // Configuración de la base de datos PostgreSQL
+if (!process.env.DATABASE_URL) {
+  console.warn("⚠️ DATABASE_URL no está configurada. La aplicación podría no funcionar correctamente.");
+}
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
