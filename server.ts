@@ -259,13 +259,15 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
+    // En Express 5, el comodín '*' ha cambiado. Usar '(.*)' es la forma más segura de capturar todas las rutas.
+    app.get('(.*)', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`🚀 Server ready at http://0.0.0.0:${PORT}`);
+    console.log(`📁 Serving static files from: ${path.join(process.cwd(), 'dist')}`);
   });
 }
 
