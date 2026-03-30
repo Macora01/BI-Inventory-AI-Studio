@@ -259,8 +259,9 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    // En Express 5, el comodín '*' debe tener nombre. Usar '/:splat*' es la forma correcta de capturar todas las rutas.
-    app.get('/:splat*', (req, res) => {
+    // En Express 5, los comodines en rutas pueden ser problemáticos. 
+    // Usar un middleware de fallback con app.use() es la forma más robusta de manejar una SPA.
+    app.use((req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
