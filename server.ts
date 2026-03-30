@@ -259,8 +259,8 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    // En Express 5, el comodín '*' ha cambiado. Usar '(.*)' es la forma más segura de capturar todas las rutas.
-    app.get('(.*)', (req, res) => {
+    // En Express 5, el comodín '*' debe tener nombre. Usar '/:splat*' es la forma correcta de capturar todas las rutas.
+    app.get('/:splat*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
