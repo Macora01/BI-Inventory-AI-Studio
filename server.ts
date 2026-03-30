@@ -25,8 +25,9 @@ if (!process.env.DATABASE_URL) {
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // En Coolify/Docker, a veces es necesario desactivar SSL o permitir certificados no autorizados
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  // En Coolify/Docker interno, a menudo el servidor Postgres no soporta SSL.
+  // Desactivamos SSL por defecto para evitar el error "The server does not support SSL connections".
+  ssl: false
 });
 
 // Manejador de errores global para el pool

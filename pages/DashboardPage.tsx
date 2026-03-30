@@ -22,21 +22,29 @@ const DashboardPage: React.FC = () => {
     // Esto optimiza el rendimiento al evitar recálculos innecesarios en cada render.
     
     // Calcula el valor total del inventario (costo * cantidad).
-    const inventoryValue = useMemo(() => 
-        stock.reduce((total, s) => {
+    const inventoryValue = useMemo(() => {
+        if (!Array.isArray(stock) || !Array.isArray(products)) return 0;
+        return stock.reduce((total, s) => {
             const product = products.find(p => p.id_venta === s.productId);
             return total + (product ? product.cost * s.quantity : 0);
-        }, 0), 
-    [stock, products]);
+        }, 0);
+    }, [stock, products]);
     
     // Calcula el total de unidades en stock.
-    const totalUnits = useMemo(() => stock.reduce((sum, s) => sum + s.quantity, 0), [stock]);
+    const totalUnits = useMemo(() => {
+        if (!Array.isArray(stock)) return 0;
+        return stock.reduce((sum, s) => sum + s.quantity, 0);
+    }, [stock]);
     
     // Calcula la cantidad de productos con bajo stock.
-    const lowStockItems = useMemo(() => stock.filter(s => s.quantity > 0 && s.quantity <= (s.criticalStock || 5)).length, [stock]);
+    const lowStockItems = useMemo(() => {
+        if (!Array.isArray(stock)) return 0;
+        return stock.filter(s => s.quantity > 0 && s.quantity <= (s.criticalStock || 5)).length;
+    }, [stock]);
 
     // Calcula los productos más vendidos para el gráfico.
     const topSellingProducts = useMemo(() => {
+        if (!Array.isArray(movements) || !Array.isArray(products)) return [];
         const sales = movements.filter(m => m.type === 'SALE');
         const salesByProduct = sales.reduce((acc, sale) => {
             const product = products.find(p => p.id_venta === sale.productId);
