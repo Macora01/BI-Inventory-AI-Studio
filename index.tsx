@@ -2,6 +2,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import './index.css';
 
 // Se busca el elemento raíz en el DOM donde se montará la aplicación de React.
 const rootElement = document.getElementById('root');

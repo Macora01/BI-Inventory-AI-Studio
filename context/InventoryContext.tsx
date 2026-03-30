@@ -56,11 +56,16 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
                 pRes.json(), sRes.json(), mRes.json(), lRes.json(), uRes.json()
             ]);
 
-            setProducts(pData);
-            setStock(sData);
-            setMovements(mData.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })));
-            setLocations(lData);
-            setUsers(uData);
+            // Validamos que los datos sean arreglos antes de guardarlos
+            setProducts(Array.isArray(pData) ? pData : []);
+            setStock(Array.isArray(sData) ? sData : []);
+            setMovements(Array.isArray(mData) ? mData.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })) : []);
+            setLocations(Array.isArray(lData) ? lData : []);
+            setUsers(Array.isArray(uData) ? uData : []);
+
+            if (!Array.isArray(pData) || !Array.isArray(sData) || !Array.isArray(mData) || !Array.isArray(lData) || !Array.isArray(uData)) {
+                console.error('Algunos datos de la API no son arreglos. Revisa la conexión a la base de datos.');
+            }
         } catch (error) {
             console.error('Error fetching data:', error);
         }

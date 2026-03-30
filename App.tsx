@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage';
 import Layout from './components/Layout';
 import { User } from './types';
 import { ToastContainer } from './components/Toast';
+import ErrorBoundary from './components/ErrorBoundary';
 
 /**
  * Componente principal de la aplicación (App).
@@ -46,19 +47,21 @@ function App() {
   return (
     // El InventoryProvider envuelve la aplicación para que todos los componentes
     // puedan acceder al estado y las funciones del inventario.
-    <InventoryProvider>
-      <div className="bg-background min-h-screen font-sans text-text-main">
-        {user ? (
-          // Si hay un usuario logueado, muestra el Layout principal de la aplicación.
-          <Layout user={user} onLogout={handleLogout} />
-        ) : (
-          // Si no hay usuario, muestra la página de inicio de sesión.
-          <LoginPage onLogin={handleLogin} />
-        )}
-      </div>
-      {/* El ToastContainer se renderiza aquí para estar disponible en toda la aplicación. */}
-      <ToastContainer />
-    </InventoryProvider>
+    <ErrorBoundary>
+      <InventoryProvider>
+        <div className="bg-background min-h-screen font-sans text-text-main">
+          {user ? (
+            // Si hay un usuario logueado, muestra el Layout principal de la aplicación.
+            <Layout user={user} onLogout={handleLogout} />
+          ) : (
+            // Si no hay usuario, muestra la página de inicio de sesión.
+            <LoginPage onLogin={handleLogin} />
+          )}
+        </div>
+        {/* El ToastContainer se renderiza aquí para estar disponible en toda la aplicación. */}
+        <ToastContainer />
+      </InventoryProvider>
+    </ErrorBoundary>
   );
 }
 

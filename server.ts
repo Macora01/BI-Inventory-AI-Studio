@@ -18,11 +18,20 @@ const PORT = 3000;
 // Configuración de la base de datos PostgreSQL
 if (!process.env.DATABASE_URL) {
   console.warn("⚠️ DATABASE_URL no está configurada. La aplicación podría no funcionar correctamente.");
+} else {
+  const maskedUrl = process.env.DATABASE_URL.replace(/:[^:@]+@/, ':****@');
+  console.log(`📡 Intentando conectar a: ${maskedUrl}`);
 }
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  // En Coolify/Docker, a veces es necesario desactivar SSL o permitir certificados no autorizados
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+// Manejador de errores global para el pool
+pool.on('error', (err) => {
+  console.error('💥 Error inesperado en el pool de PostgreSQL:', err);
 });
 
 // Inicialización de tablas
@@ -85,9 +94,12 @@ async function initDb() {
     }
 
     client.release();
-    console.log("PostgreSQL Database initialized");
+    console.log("✅ PostgreSQL Database initialized successfully");
   } catch (err) {
-    console.error("Error initializing database:", err);
+    console.error("❌ Error initializing database:", err);
+    // Log details about the connection string (masked for safety)
+    const maskedUrl = process.env.DATABASE_URL ? process.env.DATABASE_URL.replace(/:[^:@]+@/, ':****@') : 'NOT_SET';
+    console.log(`DATABASE_URL used: ${maskedUrl}`);
   }
 }
 
