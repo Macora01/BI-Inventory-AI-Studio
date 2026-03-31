@@ -63,7 +63,7 @@ const InventoryPage: React.FC = () => {
 
     // Manejadores de Producto
     const handleOpenNewProduct = () => {
-        setSelectedProduct({ id_venta: '', id_fabrica: '', description: '', price: 0, cost: 0 });
+        setSelectedProduct({ id_venta: '', id_fabrica: '', description: '', price: 0, cost: 0, minStock: 2 });
         setIsEditing(false);
         setIsProductModalOpen(true);
     };
@@ -318,6 +318,7 @@ const InventoryPage: React.FC = () => {
                                     <th key={loc.id} scope="col" className="px-4 py-3 text-center">{loc.name}</th>
                                 ))}
                                 <th scope="col" className="px-4 py-3 text-center">Total</th>
+                                <th scope="col" className="px-4 py-3 text-center">Mín.</th>
                                 <th scope="col" className="px-4 py-3 text-right">Acciones</th>
                             </tr>
                         </thead>
@@ -326,20 +327,30 @@ const InventoryPage: React.FC = () => {
                                 const totalStock = stock
                                     .filter(s => s.productId === product.id_venta)
                                     .reduce((sum, s) => sum + s.quantity, 0);
+                                
+                                const isLowStock = totalStock < (product.minStock ?? 2);
 
                                 return (
-                                    <tr key={product.id_venta} className="bg-background-light border-b border-background hover:bg-gray-50 transition-colors">
+                                    <tr key={product.id_venta} className={`bg-background-light border-b border-background hover:bg-gray-50 transition-colors ${isLowStock ? 'bg-red-50' : ''}`}>
                                         <td className="px-4 py-4">
                                             <div className="font-bold">{product.id_venta}</div>
                                             <div className="text-xs text-text-light">{product.id_fabrica}</div>
                                         </td>
-                                        <td className="px-4 py-4">{product.description}</td>
+                                        <td className="px-4 py-4">
+                                            {product.description}
+                                            {isLowStock && (
+                                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-danger text-white">
+                                                    Stock Bajo
+                                                </span>
+                                            )}
+                                        </td>
                                         {locations.map(loc => (
                                             <td key={loc.id} className="px-4 py-4 text-center">
                                                 {getStockForProductAndLocation(product.id_venta, loc.id)}
                                             </td>
                                         ))}
-                                        <td className="px-4 py-4 text-center font-bold">{totalStock}</td>
+                                        <td className={`px-4 py-4 text-center font-bold ${isLowStock ? 'text-danger' : ''}`}>{totalStock}</td>
+                                        <td className="px-4 py-4 text-center text-text-light">{product.minStock ?? 2}</td>
                                         <td className="px-4 py-4 text-right">
                                             <div className="flex justify-end space-x-1">
                                                 <button 
@@ -445,6 +456,18 @@ const InventoryPage: React.FC = () => {
                                 onChange={(e) => setSelectedProduct(prev => prev ? { ...prev, cost: Number(e.target.value) } : null)}
                             />
                         </div>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-text-main">Stock Mínimo (Total Sistema)</label>
+                        <input 
+                            type="number" 
+                            required
+                            min="0"
+                            className="mt-1 block w-full p-2 border border-accent rounded-md bg-white"
+                            value={selectedProduct?.minStock ?? 2}
+                            onChange={(e) => setSelectedProduct(prev => prev ? { ...prev, minStock: Number(e.target.value) } : null)}
+                        />
+                        <p className="text-xs text-text-light mt-1">El sistema alertará cuando la suma de todas las bodegas sea menor a este valor.</p>
                     </div>
                     <div className="flex justify-end space-x-2 pt-4">
                         <Button type="button" variant="secondary" onClick={() => setIsProductModalOpen(false)}>Cancelar</Button>

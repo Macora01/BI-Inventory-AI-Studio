@@ -13,6 +13,7 @@ export interface Product {
   cost: number;
   id_fabrica: string;
   description: string;
+  minStock?: number;
 }
 
 export interface Stock {

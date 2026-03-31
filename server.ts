@@ -46,7 +46,8 @@ async function initDb() {
         id_fabrica TEXT,
         description TEXT,
         price REAL,
-        cost REAL
+        cost REAL,
+        min_stock INTEGER DEFAULT 2
       );
 
       CREATE TABLE IF NOT EXISTS locations (
@@ -94,6 +95,13 @@ async function initDb() {
       console.log("Nota: Columna 'password' ya existe o no pudo ser añadida automáticamente.");
     }
 
+    // Migración: Añadir min_stock a productos si no existe
+    try {
+      await client.query('ALTER TABLE products ADD COLUMN IF NOT EXISTS min_stock INTEGER DEFAULT 2');
+    } catch (e) {
+      console.log("Nota: Columna 'min_stock' ya existe o no pudo ser añadida.");
+    }
+
     // Datos iniciales si las tablas están vacías
     const locationsCheck = await client.query('SELECT count(*) as count FROM locations');
     if (parseInt(locationsCheck.rows[0].count) === 0) {
@@ -131,7 +139,7 @@ app.get("/api/health", (req, res) => {
 // Products
 app.get('/api/products', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM products');
+    const result = await pool.query('SELECT id_venta, id_fabrica, description, price, cost, min_stock AS "minStock" FROM products');
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
@@ -139,11 +147,11 @@ app.get('/api/products', async (req, res) => {
 });
 
 app.post('/api/products', async (req, res) => {
-  const { id_venta, id_fabrica, description, price, cost } = req.body;
+  const { id_venta, id_fabrica, description, price, cost, minStock } = req.body;
   try {
     await pool.query(
-      'INSERT INTO products (id_venta, id_fabrica, description, price, cost) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id_venta) DO UPDATE SET id_fabrica=$2, description=$3, price=$4, cost=$5',
-      [id_venta, id_fabrica, description, price, cost]
+      'INSERT INTO products (id_venta, id_fabrica, description, price, cost, min_stock) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id_venta) DO UPDATE SET id_fabrica=$2, description=$3, price=$4, cost=$5, min_stock=$6',
+      [id_venta, id_fabrica, description, price, cost, minStock !== undefined ? minStock : 2]
     );
     res.json({ success: true });
   } catch (err) {
@@ -265,8 +273,8 @@ app.post('/api/bulk-import', async (req, res) => {
     // Upsert Products
     for (const p of products) {
       await client.query(
-        'INSERT INTO products (id_venta, id_fabrica, description, price, cost) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id_venta) DO UPDATE SET id_fabrica=$2, description=$3, price=$4, cost=$5',
-        [p.id_venta, p.id_fabrica, p.description, p.price, p.cost]
+        'INSERT INTO products (id_venta, id_fabrica, description, price, cost, min_stock) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id_venta) DO UPDATE SET id_fabrica=$2, description=$3, price=$4, cost=$5, min_stock=$6',
+        [p.id_venta, p.id_fabrica, p.description, p.price, p.cost, p.minStock !== undefined ? p.minStock : 2]
       );
     }
 
