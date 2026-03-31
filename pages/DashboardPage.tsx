@@ -38,9 +38,21 @@ const DashboardPage: React.FC = () => {
     
     // Calcula la cantidad de productos con bajo stock.
     const lowStockItems = useMemo(() => {
-        if (!Array.isArray(stock)) return 0;
-        return stock.filter(s => s.quantity > 0 && s.quantity <= (s.criticalStock || 5)).length;
-    }, [stock]);
+        if (!Array.isArray(stock) || !Array.isArray(products)) return 0;
+        
+        // Calculamos el stock total por producto
+        const totalStockByProduct = stock.reduce((acc, s) => {
+            acc[s.productId] = (acc[s.productId] || 0) + s.quantity;
+            return acc;
+        }, {} as Record<string, number>);
+
+        // Contamos cuántos productos están por debajo de su stock mínimo
+        return products.filter(product => {
+            const totalStock = totalStockByProduct[product.id_venta] || 0;
+            const minStock = product.minStock ?? 2;
+            return totalStock < minStock;
+        }).length;
+    }, [stock, products]);
 
     // Calcula los productos más vendidos para el gráfico.
     const topSellingProducts = useMemo(() => {
