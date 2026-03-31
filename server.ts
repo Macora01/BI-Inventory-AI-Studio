@@ -79,6 +79,7 @@ async function initDb() {
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
         username TEXT UNIQUE,
+        password TEXT,
         role TEXT
       );
     `);
@@ -91,7 +92,7 @@ async function initDb() {
 
     const usersCheck = await client.query('SELECT count(*) as count FROM users');
     if (parseInt(usersCheck.rows[0].count) === 0) {
-      await client.query("INSERT INTO users (id, username, role) VALUES ('user_1', 'admin', 'admin')");
+      await client.query("INSERT INTO users (id, username, password, role) VALUES ('user_1', 'admin', 'admin123', 'admin')");
     }
 
     client.release();
@@ -293,11 +294,11 @@ app.get('/api/users', async (req, res) => {
 });
 
 app.post('/api/users', async (req, res) => {
-  const { id, username, role } = req.body;
+  const { id, username, password, role } = req.body;
   try {
     await pool.query(
-      'INSERT INTO users (id, username, role) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET username=$2, role=$3',
-      [id || `user_${Date.now()}`, username, role]
+      'INSERT INTO users (id, username, password, role) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET username=$2, password=$3, role=$4',
+      [id || `user_${Date.now()}`, username, password || '', role]
     );
     res.json({ success: true });
   } catch (err) {

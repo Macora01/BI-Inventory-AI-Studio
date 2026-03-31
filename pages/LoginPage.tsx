@@ -25,13 +25,17 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         // Fallback de seguridad: Si la base de datos está vacía o no carga, 
         // permitimos entrar con 'admin' para no bloquear al usuario.
         if (!foundUser && trimmedUsername === 'admin') {
-            foundUser = { id: 'user_1', username: 'admin', role: 'admin' };
+            foundUser = { id: 'user_1', username: 'admin', password: 'admin123', role: 'admin' };
         }
 
         if (foundUser) {
-            onLogin(foundUser);
+            if (foundUser.password === password) {
+                onLogin(foundUser);
+            } else {
+                setError('Contraseña incorrecta.');
+            }
         } else {
-            setError('Usuario no encontrado. Por favor, intenta con "admin" o contacta al administrador.');
+            setError('Usuario no encontrado. Por favor, contacta al administrador.');
         }
     };
 
@@ -67,9 +71,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                             onChange={(e) => setPassword(e.target.value)}
                             className="mt-1 block w-full px-3 py-2 bg-white border border-accent rounded-md shadow-sm focus:outline-none focus:ring-secondary focus:border-secondary"
                         />
-                         <p className="text-xs text-text-light mt-1">
-                            (Para este demo, la contraseña no es validada)
-                        </p>
                     </div>
                     {error && <p className="text-sm text-danger text-center">{error}</p>}
                     <Button type="submit" className="w-full flex items-center justify-center">

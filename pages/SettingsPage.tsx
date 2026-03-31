@@ -100,9 +100,9 @@ const SettingsPage: React.FC = () => {
     };
 
     // --- MANEJO DE USUARIOS ---
-     const openUserModal = (user: User | null = null) => {
+    const openUserModal = (user: User | null = null) => {
         setEditingUser(user);
-        setFormData(user || { username: '', role: 'user' });
+        setFormData(user || { username: '', password: '', role: 'user' });
         setUserModalOpen(true);
     };
 
@@ -156,6 +156,7 @@ const SettingsPage: React.FC = () => {
                         <thead className="text-xs text-primary uppercase bg-accent">
                             <tr>
                                 <th className="px-6 py-3">Nombre de Usuario</th>
+                                <th className="px-6 py-3">Contraseña</th>
                                 <th className="px-6 py-3">Rol</th>
                                 <th className="px-6 py-3 text-right">Acciones</th>
                             </tr>
@@ -164,6 +165,7 @@ const SettingsPage: React.FC = () => {
                             {users.map(user => (
                                 <tr key={user.id} className="bg-background-light border-b border-background">
                                     <td className="px-6 py-4">{user.username}</td>
+                                    <td className="px-6 py-4">••••••••</td>
                                     <td className="px-6 py-4 capitalize">{user.role}</td>
                                     <td className="px-6 py-4 text-right">
                                         <button onClick={() => openUserModal(user)} className="text-secondary p-1"><Edit size={16}/></button>
@@ -271,6 +273,10 @@ const SettingsPage: React.FC = () => {
                     <div>
                         <label className="block text-sm font-medium text-text-main">Nombre de Usuario</label>
                         <input type="text" value={formData.username || ''} onChange={(e) => setFormData({...formData, username: e.target.value})} className="mt-1 w-full p-2 border border-accent rounded-md" required />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-text-main">Contraseña</label>
+                        <input type="password" value={formData.password || ''} onChange={(e) => setFormData({...formData, password: e.target.value})} className="mt-1 w-full p-2 border border-accent rounded-md" required />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-text-main">Rol</label>
