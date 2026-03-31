@@ -16,6 +16,9 @@ interface InventoryContextType {
     setInitialData: (products: Product[], stock: Stock[], movements: Movement[]) => void;
     findProductById: (productId: string) => Product | undefined;
     clearAllData: () => void;
+    clearProducts: () => Promise<void>;
+    clearLocations: () => Promise<void>;
+    clearUsers: () => Promise<void>;
     
     // Funciones CRUD para Productos
     addProduct: (product: Product) => Promise<void>;
@@ -122,33 +125,26 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
     }, []);
     
     const setInitialData = useCallback(async (initialProducts: Product[], initialStock: Stock[], initialMovements: Movement[]) => {
-        // En una app real, esto debería ser una transacción en el backend.
-        // Por simplicidad para el demo, lo hacemos secuencialmente.
         try {
-            for (const p of initialProducts) {
-                await fetch('/api/products', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(p)
-                });
+            const response = await fetch('/api/bulk-import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    products: initialProducts, 
+                    stock: initialStock, 
+                    movements: initialMovements 
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Error en la importación masiva');
             }
-            for (const s of initialStock) {
-                await fetch('/api/stock/update', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ productId: s.productId, locationId: s.locationId, quantityChange: s.quantity })
-                });
-            }
-            for (const m of initialMovements) {
-                await fetch('/api/movements', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(m)
-                });
-            }
-            fetchData(); // Recarga todo
+
+            await fetchData(); // Recarga todo
         } catch (error) {
             console.error('Error setting initial data:', error);
+            throw error;
         }
     }, [fetchData]);
 
@@ -286,11 +282,46 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
             console.error('Error clearing data:', error);
         }
     }, [fetchData]);
+
+    const clearProducts = useCallback(async () => {
+        try {
+            await fetch('/api/clear/products', { method: 'POST' });
+            setProducts([]);
+            setStock([]);
+            setMovements([]);
+            fetchData();
+        } catch (error) {
+            console.error('Error clearing products:', error);
+        }
+    }, [fetchData]);
+
+    const clearLocations = useCallback(async () => {
+        try {
+            await fetch('/api/clear/locations', { method: 'POST' });
+            setLocations([]);
+            setStock([]);
+            fetchData();
+        } catch (error) {
+            console.error('Error clearing locations:', error);
+        }
+    }, [fetchData]);
+
+    const clearUsers = useCallback(async () => {
+        try {
+            await fetch('/api/clear/users', { method: 'POST' });
+            setUsers([]);
+            localStorage.removeItem('inventory_user'); // Cierra sesión si se borran todos los usuarios
+            fetchData();
+        } catch (error) {
+            console.error('Error clearing users:', error);
+        }
+    }, [fetchData]);
     
     return (
         <InventoryContext.Provider value={{ 
             products, stock, movements, locations, users, 
             addMovement, updateStock, setInitialData, findProductById, clearAllData,
+            clearProducts, clearLocations, clearUsers,
             addProduct, updateProduct, deleteProduct,
             addLocation, updateLocation, deleteLocation,
             addUser, updateUser, deleteUser

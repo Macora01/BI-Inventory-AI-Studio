@@ -127,47 +127,58 @@ const InventoryPage: React.FC = () => {
     // --- LÓGICA DE IMPORTACIÓN CSV ---
     
     const processInitialInventory = async (content: string) => {
+        if (locations.length === 0) {
+            alert('Error: Las ubicaciones aún no se han cargado. Por favor, espere un momento.');
+            return;
+        }
+
         Papa.parse(content, {
             header: true,
             skipEmptyLines: true,
+            delimiter: "", // Auto-detectar delimitador (, o ;)
             complete: async (results) => {
-                const data = results.data as ParsedInitialInventory[];
-                const newProducts: Product[] = [];
-                const newStock: Stock[] = [];
-                const newMovements: any[] = [];
-                
-                const mainLoc = locations.find(l => l.id === 'loc_central') || locations[0];
-                
-                data.forEach(item => {
-                    if (!item.id_venta) return;
-                    newProducts.push({
-                        id_venta: item.id_venta,
-                        id_fabrica: item.id_fabrica || '',
-                        description: item.description || '',
-                        price: Number(item.price) || 0,
-                        cost: Number(item.cost) || 0
+                try {
+                    const data = results.data as ParsedInitialInventory[];
+                    const newProducts: Product[] = [];
+                    const newStock: Stock[] = [];
+                    const newMovements: any[] = [];
+                    
+                    const mainLoc = locations.find(l => l.id === 'main_warehouse' || l.id === 'loc_central') || locations[0];
+                    
+                    data.forEach(item => {
+                        if (!item.id_venta) return;
+                        newProducts.push({
+                            id_venta: item.id_venta,
+                            id_fabrica: item.id_fabrica || '',
+                            description: item.description || '',
+                            price: Number(item.price) || 0,
+                            cost: Number(item.cost) || 0
+                        });
+                        
+                        if (Number(item.qty) > 0) {
+                            newStock.push({
+                                productId: item.id_venta,
+                                locationId: mainLoc.id,
+                                quantity: Number(item.qty)
+                            });
+                            newMovements.push({
+                                productId: item.id_venta,
+                                quantity: Number(item.qty),
+                                type: MovementType.INITIAL_LOAD,
+                                toLocationId: mainLoc.id,
+                                timestamp: new Date(),
+                                relatedFile: 'Carga Inicial CSV'
+                            });
+                        }
                     });
                     
-                    if (Number(item.qty) > 0) {
-                        newStock.push({
-                            productId: item.id_venta,
-                            locationId: mainLoc.id,
-                            quantity: Number(item.qty)
-                        });
-                        newMovements.push({
-                            productId: item.id_venta,
-                            quantity: Number(item.qty),
-                            type: MovementType.INITIAL_LOAD,
-                            toLocationId: mainLoc.id,
-                            timestamp: new Date(),
-                            relatedFile: 'Carga Inicial CSV'
-                        });
-                    }
-                });
-                
-                await setInitialData(newProducts, newStock, newMovements);
-                setIsImportModalOpen(false);
-                alert('Inventario inicial cargado con éxito.');
+                    await setInitialData(newProducts, newStock, newMovements);
+                    setIsImportModalOpen(false);
+                    alert('Inventario inicial cargado con éxito.');
+                } catch (error: any) {
+                    console.error('Error procesando inventario:', error);
+                    alert(`Error al cargar el inventario: ${error.message}`);
+                }
             }
         });
     };

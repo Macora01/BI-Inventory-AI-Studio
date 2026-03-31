@@ -11,7 +11,7 @@ const SettingsPage: React.FC = () => {
     const { 
         locations, addLocation, updateLocation, deleteLocation,
         users, addUser, updateUser, deleteUser,
-        clearAllData
+        clearAllData, clearProducts, clearLocations, clearUsers
     } = useInventory();
     const { addToast } = useToast();
 
@@ -31,12 +31,11 @@ const SettingsPage: React.FC = () => {
 
         const timer = setTimeout(() => {
             setIsConfirmingClear(false);
-            addToast('La eliminación de datos fue cancelada automáticamente.', 'info');
         }, 5000); // 5 segundos para confirmar
 
         // Limpia el temporizador si el componente se desmonta o el estado cambia.
         return () => clearTimeout(timer);
-    }, [isConfirmingClear, addToast]);
+    }, [isConfirmingClear]);
 
 
     const handleClearData = () => {
@@ -50,7 +49,30 @@ const SettingsPage: React.FC = () => {
         } else {
             // Primer clic: activa el modo de confirmación.
             setIsConfirmingClear(true);
-            addToast('Se requiere confirmación para eliminar todos los datos.', 'warning');
+            addToast('Se requiere confirmación para eliminar TODOS los datos.', 'warning');
+        }
+    };
+
+    const handleClearSpecific = async (type: 'products' | 'locations' | 'users') => {
+        const messages = {
+            products: '¿Está seguro de eliminar todos los productos, stock y movimientos?',
+            locations: '¿Está seguro de eliminar todas las ubicaciones y el stock asociado?',
+            users: '¿Está seguro de eliminar todos los usuarios? Esto cerrará su sesión.'
+        };
+
+        if (window.confirm(messages[type])) {
+            try {
+                if (type === 'products') await clearProducts();
+                if (type === 'locations') await clearLocations();
+                if (type === 'users') {
+                    await clearUsers();
+                    window.location.reload();
+                    return;
+                }
+                addToast(`Base de datos de ${type} limpiada con éxito.`, 'success');
+            } catch (error) {
+                addToast(`Error al limpiar ${type}.`, 'error');
+            }
         }
     };
 
@@ -156,44 +178,69 @@ const SettingsPage: React.FC = () => {
 
             {/* Gestión de Datos */}
             <Card title="Gestión de Datos">
-                <div className="flex flex-col items-center justify-center p-4 text-center">
-                     <p className="text-text-light mb-4">
-                        {isConfirmingClear
-                            ? '¡ADVERTENCIA! ¿Está seguro de que desea eliminar permanentemente todos los datos?'
-                            : 'Elimina todos los datos de la aplicación (productos, stock, etc.).'
-                        }
-                     </p>
-                     <div className="flex items-center justify-center gap-4">
-                        {isConfirmingClear ? (
-                            <>
+                <div className="space-y-6 p-4">
+                    {/* Limpiar Productos */}
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-accent pb-4">
+                        <div className="text-left">
+                            <h4 className="font-bold text-primary">Base de Datos de Productos</h4>
+                            <p className="text-sm text-text-light">Elimina productos, stock y movimientos asociados.</p>
+                        </div>
+                        <Button onClick={() => handleClearSpecific('products')} variant="danger">Limpiar Productos</Button>
+                    </div>
+
+                    {/* Limpiar Ubicaciones */}
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-accent pb-4">
+                        <div className="text-left">
+                            <h4 className="font-bold text-primary">Base de Datos de Ubicaciones</h4>
+                            <p className="text-sm text-text-light">Elimina todas las ubicaciones y el stock asociado.</p>
+                        </div>
+                        <Button onClick={() => handleClearSpecific('locations')} variant="danger">Limpiar Ubicaciones</Button>
+                    </div>
+
+                    {/* Limpiar Usuarios */}
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-accent pb-4">
+                        <div className="text-left">
+                            <h4 className="font-bold text-primary">Base de Datos de Usuarios</h4>
+                            <p className="text-sm text-text-light">Elimina todos los usuarios (requiere re-login).</p>
+                        </div>
+                        <Button onClick={() => handleClearSpecific('users')} variant="danger">Limpiar Usuarios</Button>
+                    </div>
+
+                    {/* Limpiar Todo */}
+                    <div className="flex flex-col items-center justify-center pt-4 text-center">
+                         <p className="text-text-light mb-4">
+                            {isConfirmingClear
+                                ? '¡ADVERTENCIA! ¿Está seguro de que desea eliminar permanentemente TODOS los datos del sistema?'
+                                : 'Elimina absolutamente todos los datos de la aplicación.'
+                            }
+                         </p>
+                         <div className="flex items-center justify-center gap-4">
+                            {isConfirmingClear ? (
+                                <>
+                                    <Button
+                                        onClick={handleClearData}
+                                        variant="danger"
+                                        className="animate-pulse"
+                                    >
+                                        Sí, Eliminar Todo
+                                    </Button>
+                                    <Button
+                                        onClick={handleCancelClear}
+                                        variant="secondary"
+                                    >
+                                        Cancelar
+                                    </Button>
+                                </>
+                            ) : (
                                 <Button
                                     onClick={handleClearData}
                                     variant="danger"
-                                    className="animate-pulse"
                                 >
-                                    Sí, Eliminar Todo
+                                    Limpiar Todos los Datos
                                 </Button>
-                                <Button
-                                    onClick={handleCancelClear}
-                                    variant="secondary"
-                                >
-                                    Cancelar Operación
-                                </Button>
-                            </>
-                        ) : (
-                            <Button
-                                onClick={handleClearData}
-                                variant="danger"
-                            >
-                                Limpiar Todos los Datos
-                            </Button>
-                        )}
+                            )}
+                        </div>
                     </div>
-                     {isConfirmingClear && (
-                        <p className="text-sm text-danger mt-2">
-                            Esta acción no se puede deshacer. Tiene 5 segundos para confirmar.
-                        </p>
-                    )}
                 </div>
             </Card>
 

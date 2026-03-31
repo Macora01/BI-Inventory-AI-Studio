@@ -241,6 +241,47 @@ app.post('/api/movements', async (req, res) => {
   }
 });
 
+// Bulk Import
+app.post('/api/bulk-import', async (req, res) => {
+  const { products, stock, movements } = req.body;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Upsert Products
+    for (const p of products) {
+      await client.query(
+        'INSERT INTO products (id_venta, id_fabrica, description, price, cost) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id_venta) DO UPDATE SET id_fabrica=$2, description=$3, price=$4, cost=$5',
+        [p.id_venta, p.id_fabrica, p.description, p.price, p.cost]
+      );
+    }
+
+    // Upsert Stock
+    for (const s of stock) {
+      await client.query(
+        'INSERT INTO stock (productId, locationId, quantity) VALUES ($1, $2, $3) ON CONFLICT (productId, locationId) DO UPDATE SET quantity = $3',
+        [s.productId, s.locationId, s.quantity]
+      );
+    }
+
+    // Insert Movements
+    for (const m of movements) {
+      await client.query(
+        'INSERT INTO movements (id, productId, quantity, type, fromLocationId, toLocationId, timestamp, relatedFile, price, cost) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+        [m.id || `mov_${Date.now()}_${Math.random()}`, m.productId, m.quantity, m.type, m.fromLocationId, m.toLocationId, m.timestamp || new Date().toISOString(), m.relatedFile, m.price, m.cost]
+      );
+    }
+
+    await client.query('COMMIT');
+    res.json({ success: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: (err as Error).message });
+  } finally {
+    client.release();
+  }
+});
+
 // Users
 app.get('/api/users', async (req, res) => {
   try {
@@ -274,17 +315,74 @@ app.delete('/api/users/:id', async (req, res) => {
 });
 
 // Clear Data
-app.post('/api/clear', async (req, res) => {
+// --- CLEAR DATA ENDPOINTS ---
+
+app.post('/api/clear/products', async (req, res) => {
+  const client = await pool.connect();
   try {
-    await pool.query('BEGIN');
-    await pool.query('DELETE FROM products');
-    await pool.query('DELETE FROM stock');
-    await pool.query('DELETE FROM movements');
-    await pool.query('COMMIT');
+    await client.query('BEGIN');
+    await client.query('DELETE FROM movements');
+    await client.query('DELETE FROM stock');
+    await client.query('DELETE FROM products');
+    await client.query('COMMIT');
     res.json({ success: true });
   } catch (err) {
-    await pool.query('ROLLBACK');
+    await client.query('ROLLBACK');
     res.status(500).json({ error: (err as Error).message });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/clear/locations', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM stock');
+    await client.query('DELETE FROM locations');
+    // Re-insert default locations if needed or let the app handle it
+    await client.query('COMMIT');
+    res.json({ success: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: (err as Error).message });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/clear/users', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM users');
+    // Re-insert default admin? The app usually does this on restart if table is empty
+    await client.query('COMMIT');
+    res.json({ success: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: (err as Error).message });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/clear', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM movements');
+    await client.query('DELETE FROM stock');
+    await client.query('DELETE FROM products');
+    await client.query('DELETE FROM locations');
+    await client.query('DELETE FROM users');
+    await client.query('COMMIT');
+    res.json({ success: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: (err as Error).message });
+  } finally {
+    client.release();
   }
 });
 

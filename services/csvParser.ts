@@ -2,6 +2,17 @@
 import { ParsedInitialInventory, ParsedSale, ParsedTransfer } from '../types';
 
 /**
+ * Detecta el delimitador utilizado en una línea de CSV (coma o punto y coma).
+ * @param {string} line - La primera línea del CSV (cabeceras).
+ * @returns {string} El delimitador detectado.
+ */
+const detectDelimiter = (line: string): string => {
+  const commaCount = (line.match(/,/g) || []).length;
+  const semicolonCount = (line.match(/;/g) || []).length;
+  return semicolonCount > commaCount ? ';' : ',';
+};
+
+/**
  * Parsea un string CSV para la carga inicial de inventario.
  * @param {string} csvContent - El contenido en string del archivo CSV.
  * @returns {ParsedInitialInventory[]} Un array de objetos de inventario parseados.
@@ -9,24 +20,27 @@ import { ParsedInitialInventory, ParsedSale, ParsedTransfer } from '../types';
  */
 export const parseInitialInventoryCSV = (csvContent: string): ParsedInitialInventory[] => {
   const lines = csvContent.trim().split('\n');
-  const headers = lines[0].split(',').map(h => h.trim());
+  if (lines.length === 0) return [];
+  
+  const delimiter = detectDelimiter(lines[0]);
+  const headers = lines[0].split(delimiter).map(h => h.trim());
   const expectedHeaders = ['id_venta', 'price', 'cost', 'id_fabrica', 'qty', 'description'];
 
   // Valida que las cabeceras del archivo coincidan con las esperadas.
   if (JSON.stringify(headers) !== JSON.stringify(expectedHeaders)) {
-    throw new Error(`Cabeceras de CSV inválidas. Esperado: ${expectedHeaders.join(',')}, Recibido: ${headers.join(',')}`);
+    throw new Error(`Cabeceras de CSV inválidas. Esperado: ${expectedHeaders.join(delimiter)}, Recibido: ${headers.join(delimiter)}`);
   }
 
   // Mapea cada línea del CSV a un objeto estructurado.
   return lines.slice(1).map(line => {
-    const values = line.split(',');
+    const values = line.split(delimiter);
     return {
-      id_venta: values[0].trim(),
-      price: parseInt(values[1].trim(), 10) || 0,
-      cost: parseInt(values[2].trim(), 10) || 0,
-      id_fabrica: values[3].trim(),
-      qty: parseInt(values[4].trim(), 10) || 0,
-      description: values[5].trim(),
+      id_venta: values[0]?.trim() || '',
+      price: parseInt(values[1]?.trim() || '0', 10) || 0,
+      cost: parseInt(values[2]?.trim() || '0', 10) || 0,
+      id_fabrica: values[3]?.trim() || '',
+      qty: parseInt(values[4]?.trim() || '0', 10) || 0,
+      description: values[5]?.trim() || '',
     };
   });
 };
@@ -40,20 +54,23 @@ export const parseInitialInventoryCSV = (csvContent: string): ParsedInitialInven
  */
 export const parseTransferCSV = (csvContent: string): ParsedTransfer[] => {
     const lines = csvContent.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim());
+    if (lines.length === 0) return [];
+
+    const delimiter = detectDelimiter(lines[0]);
+    const headers = lines[0].split(delimiter).map(h => h.trim());
     const expectedHeaders = ['sitio_inicial', 'sitio_final', 'id_venta', 'qty'];
 
     if (JSON.stringify(headers) !== JSON.stringify(expectedHeaders)) {
-        throw new Error(`Cabeceras de CSV de transferencia inválidas. Esperado: ${expectedHeaders.join(',')}, Recibido: ${headers.join(',')}`);
+        throw new Error(`Cabeceras de CSV de transferencia inválidas. Esperado: ${expectedHeaders.join(delimiter)}, Recibido: ${headers.join(delimiter)}`);
     }
 
     return lines.slice(1).map(line => {
-        const values = line.split(',');
+        const values = line.split(delimiter);
         return {
-            sitio_inicial: values[0].trim(),
-            sitio_final: values[1].trim(),
-            id_venta: values[2].trim(),
-            qty: parseInt(values[3].trim(), 10) || 0
+            sitio_inicial: values[0]?.trim() || '',
+            sitio_final: values[1]?.trim() || '',
+            id_venta: values[2]?.trim() || '',
+            qty: parseInt(values[3]?.trim() || '0', 10) || 0
         };
     });
 };
@@ -67,23 +84,26 @@ export const parseTransferCSV = (csvContent: string): ParsedTransfer[] => {
  */
 export const parseSalesCSV = (csvContent: string): ParsedSale[] => {
     const lines = csvContent.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim());
+    if (lines.length === 0) return [];
+
+    const delimiter = detectDelimiter(lines[0]);
+    const headers = lines[0].split(delimiter).map(h => h.trim());
     const expectedHeaders = ['timestamp', 'lugar', 'cod_fabrica', 'cod_venta', 'description', 'precio', 'qty'];
     
     if (JSON.stringify(headers) !== JSON.stringify(expectedHeaders)) {
-        throw new Error(`Cabeceras de CSV de ventas inválidas. Esperado: ${expectedHeaders.join(',')}, Recibido: ${headers.join(',')}`);
+        throw new Error(`Cabeceras de CSV de ventas inválidas. Esperado: ${expectedHeaders.join(delimiter)}, Recibido: ${headers.join(delimiter)}`);
     }
 
     return lines.slice(1).map(line => {
-        const values = line.split(',');
+        const values = line.split(delimiter);
         return {
-            timestamp: values[0].trim(),
-            lugar: values[1].trim(),
-            cod_fabrica: values[2].trim(),
-            cod_venta: values[3].trim(),
-            description: values[4].trim(),
-            precio: parseInt(values[5].trim(), 10) || 0,
-            qty: parseInt(values[6].trim(), 10) || 1,
+            timestamp: values[0]?.trim() || '',
+            lugar: values[1]?.trim() || '',
+            cod_fabrica: values[2]?.trim() || '',
+            cod_venta: values[3]?.trim() || '',
+            description: values[4]?.trim() || '',
+            precio: parseInt(values[5]?.trim() || '0', 10) || 0,
+            qty: parseInt(values[6]?.trim() || '0', 10) || 1,
         };
     });
 };

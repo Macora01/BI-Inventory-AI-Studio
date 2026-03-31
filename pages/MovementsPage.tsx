@@ -60,7 +60,7 @@ const MovementsPage: React.FC = () => {
                     relatedFile: file.name
                 });
             }
-            setInitialData(newProducts, newStock, newMovements);
+            await setInitialData(newProducts, newStock, newMovements);
             addToast(`Carga inicial desde '${file.name}' procesada con éxito.`, 'success');
         } catch (error: any) {
             addToast(`Error procesando archivo inicial: ${error.message}`, 'error');
