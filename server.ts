@@ -75,7 +75,9 @@ async function initDb() {
         price REAL,
         cost REAL
       );
+    `);
 
+    await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
         username TEXT UNIQUE,
@@ -83,6 +85,14 @@ async function initDb() {
         role TEXT
       );
     `);
+
+    // Migración: Asegurar que la columna password existe si la tabla ya fue creada antes
+    try {
+      await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS password TEXT');
+    } catch (e) {
+      // Ignorar si ya existe o hay error (Postgres 9.6+ soporta IF NOT EXISTS en ADD COLUMN)
+      console.log("Nota: Columna 'password' ya existe o no pudo ser añadida automáticamente.");
+    }
 
     // Datos iniciales si las tablas están vacías
     const locationsCheck = await client.query('SELECT count(*) as count FROM locations');
@@ -93,6 +103,9 @@ async function initDb() {
     const usersCheck = await client.query('SELECT count(*) as count FROM users');
     if (parseInt(usersCheck.rows[0].count) === 0) {
       await client.query("INSERT INTO users (id, username, password, role) VALUES ('user_1', 'admin', 'admin123', 'admin')");
+    } else {
+      // Asegurar que el admin existente tenga la contraseña por defecto si no tiene una
+      await client.query("UPDATE users SET password = 'admin123' WHERE username = 'admin' AND (password IS NULL OR password = '')");
     }
 
     client.release();
