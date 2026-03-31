@@ -182,7 +182,7 @@ app.delete('/api/locations/:id', async (req, res) => {
 // Stock
 app.get('/api/stock', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM stock');
+    const result = await pool.query('SELECT productId AS "productId", locationId AS "locationId", quantity, criticalStock AS "criticalStock" FROM stock');
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
@@ -207,7 +207,21 @@ app.post('/api/stock/update', async (req, res) => {
 // Movements
 app.get('/api/movements', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM movements ORDER BY timestamp DESC');
+    const result = await pool.query(`
+      SELECT 
+        id, 
+        productId AS "productId", 
+        quantity, 
+        type, 
+        fromLocationId AS "fromLocationId", 
+        toLocationId AS "toLocationId", 
+        timestamp, 
+        relatedFile AS "relatedFile", 
+        price, 
+        cost 
+      FROM movements 
+      ORDER BY timestamp DESC
+    `);
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });

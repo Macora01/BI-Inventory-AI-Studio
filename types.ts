@@ -74,9 +74,9 @@ export interface ParsedInitialInventory {
 }
 
 export interface ParsedTransfer {
-  cod_venta: string;
-  description: string;
-  precio: number;
+  sitio_inicial: string;
+  sitio_final: string;
+  id_venta: string;
   qty: number;
 }
 

@@ -178,18 +178,37 @@ const InventoryPage: React.FC = () => {
             skipEmptyLines: true,
             complete: async (results) => {
                 const data = results.data as ParsedTransfer[];
-                // Asumimos transferencia de Bodega Central a Almacén 1 por defecto para el demo
-                const fromLoc = locations.find(l => l.id === 'loc_central') || locations[0];
-                const toLoc = locations.find(l => l.id === 'loc_almacen1') || locations[1] || locations[0];
+                const errors: string[] = [];
                 
                 for (const item of data) {
-                    if (!item.cod_venta || !item.qty) continue;
+                    if (!item.id_venta || !item.qty) continue;
                     const qty = Number(item.qty);
                     
-                    await updateStock(item.cod_venta, fromLoc.id, -qty);
-                    await updateStock(item.cod_venta, toLoc.id, qty);
+                    // Validar existencia de ubicaciones
+                    const fromLoc = locations.find(l => l.name.toLowerCase() === item.sitio_inicial?.toLowerCase());
+                    const toLoc = locations.find(l => l.name.toLowerCase() === item.sitio_final?.toLowerCase());
+                    
+                    if (!fromLoc) {
+                        errors.push(`Error: El sitio inicial "${item.sitio_inicial}" no existe en la configuración.`);
+                        continue;
+                    }
+                    if (!toLoc) {
+                        errors.push(`Error: El sitio final "${item.sitio_final}" no existe en la configuración.`);
+                        continue;
+                    }
+                    
+                    // Validar stock en sitio inicial
+                    const currentStock = getStockForProductAndLocation(item.id_venta, fromLoc.id);
+                    if (currentStock < qty) {
+                        errors.push(`Error: Stock insuficiente para "${item.id_venta}" en "${item.sitio_inicial}". Disponible: ${currentStock}, Requerido: ${qty}.`);
+                        continue;
+                    }
+                    
+                    // Procesar transferencia
+                    await updateStock(item.id_venta, fromLoc.id, -qty);
+                    await updateStock(item.id_venta, toLoc.id, qty);
                     await addMovement({
-                        productId: item.cod_venta,
+                        productId: item.id_venta,
                         quantity: qty,
                         type: MovementType.TRANSFER_IN,
                         fromLocationId: fromLoc.id,
@@ -198,8 +217,13 @@ const InventoryPage: React.FC = () => {
                         relatedFile: 'Transferencia CSV'
                     });
                 }
+                
                 setIsImportModalOpen(false);
-                alert('Transferencias procesadas con éxito.');
+                if (errors.length > 0) {
+                    alert(`Transferencias procesadas con algunos errores:\n\n${errors.join('\n')}`);
+                } else {
+                    alert('Todas las transferencias se procesaron con éxito.');
+                }
             }
         });
     };
@@ -210,11 +234,19 @@ const InventoryPage: React.FC = () => {
             skipEmptyLines: true,
             complete: async (results) => {
                 const data = results.data as ParsedSale[];
+                const errors: string[] = [];
                 
                 for (const item of data) {
                     if (!item.cod_venta || !item.qty) continue;
-                    // Buscar ubicación por nombre o usar la primera
-                    const loc = locations.find(l => l.name.toLowerCase().includes(item.lugar?.toLowerCase())) || locations[0];
+                    
+                    // Buscar ubicación por nombre exacto
+                    const loc = locations.find(l => l.name.toLowerCase() === item.lugar?.toLowerCase());
+                    
+                    if (!loc) {
+                        errors.push(`Error: El lugar de venta "${item.lugar}" no existe en la configuración.`);
+                        continue;
+                    }
+                    
                     const qty = Number(item.qty) || 1;
                     
                     await updateStock(item.cod_venta, loc.id, -qty);
@@ -228,8 +260,13 @@ const InventoryPage: React.FC = () => {
                         relatedFile: 'Venta CSV'
                     });
                 }
+                
                 setIsImportModalOpen(false);
-                alert('Ventas procesadas con éxito.');
+                if (errors.length > 0) {
+                    alert(`Ventas procesadas con algunos errores:\n\n${errors.join('\n')}`);
+                } else {
+                    alert('Ventas procesadas con éxito.');
+                }
             }
         });
     };
@@ -511,8 +548,12 @@ const InventoryPage: React.FC = () => {
                         <h5 className="text-xs font-bold text-primary uppercase mb-2">Formatos Esperados (Cabeceras):</h5>
                         <ul className="text-[10px] space-y-1 text-text-main list-disc pl-4">
                             <li><strong>Inventario:</strong> id_venta, price, cost, id_fabrica, qty, description</li>
-                            <li><strong>Transferencias:</strong> cod_venta, description, precio, qty</li>
-                            <li><strong>Ventas:</strong> timestamp, lugar, cod_fabrica, cod_venta, description, precio, qty</li>
+                            <li><strong>Transferencias:</strong> sitio_inicial, sitio_final, id_venta, qty <br/>
+                                <span className="text-[9px] text-text-light italic">(Ej: Bod_Prin, Alma_VLT, PROD01, 1)</span>
+                            </li>
+                            <li><strong>Ventas:</strong> timestamp, lugar, cod_fabrica, cod_venta, description, precio, qty <br/>
+                                <span className="text-[9px] text-text-light italic">(Ej: 2024-03-31, Alma_VLT, FAB01, VENTA01, Desc, 100, 1)</span>
+                            </li>
                         </ul>
                     </div>
                 </div>
