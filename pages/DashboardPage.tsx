@@ -3,7 +3,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import Card from '../components/Card';
 import { useInventory } from '../context/InventoryContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { DollarSign, Archive, AlertTriangle, Package } from 'lucide-react';
+import { DollarSign, Archive, AlertTriangle, Package, CheckCircle, RefreshCw } from 'lucide-react';
 import { analyzeInventoryData } from '../services/geminiService';
 import { GeminiInsight } from '../types';
 import Button from '../components/Button';
@@ -17,6 +17,7 @@ const DashboardPage: React.FC = () => {
     const { products, stock, movements } = useInventory();
     const [insights, setInsights] = useState<GeminiInsight[]>([]);
     const [isLoadingInsights, setIsLoadingInsights] = useState(false);
+    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
     // useMemo para calcular valores clave solo cuando sus dependencias cambian.
     // Esto optimiza el rendimiento al evitar recálculos innecesarios en cada render.
@@ -78,6 +79,7 @@ const DashboardPage: React.FC = () => {
         try {
             const analysisResult = await analyzeInventoryData(products, stock, movements);
             setInsights(JSON.parse(analysisResult));
+            setLastUpdated(new Date());
         } catch (error) {
             console.error("Fallo al parsear los insights de Gemini:", error);
             setInsights([{
@@ -85,6 +87,7 @@ const DashboardPage: React.FC = () => {
                 insight: "La respuesta del análisis de IA no pudo ser procesada.",
                 recommendation: "Intente nuevamente. Si el problema persiste, la respuesta de la IA podría no estar en el formato JSON esperado."
             }]);
+            setLastUpdated(null);
         } finally {
             setIsLoadingInsights(false);
         }
@@ -125,16 +128,40 @@ const DashboardPage: React.FC = () => {
                                 </Button>
                             </div>
                         )}
-                        {isLoadingInsights && <p className="text-text-main my-auto text-center">Analizando datos...</p>}
-                        {insights.length > 0 && (
-                             <div className="space-y-3 overflow-y-auto pr-2" style={{maxHeight: '240px'}}>
-                                {insights.map((insight, index) => (
-                                    <div key={index} className="text-sm">
-                                        <h4 className="font-bold text-primary">{insight.title}</h4>
-                                        <p className="text-text-main"><span className="font-semibold">Insight:</span> {insight.insight}</p>
-                                        <p className="text-text-light"><span className="font-semibold">Recomendación:</span> {insight.recommendation}</p>
+                        {isLoadingInsights && (
+                            <div className="text-center my-auto">
+                                <RefreshCw className="w-8 h-8 text-primary animate-spin mx-auto mb-2" />
+                                <p className="text-text-main">Analizando datos...</p>
+                                <p className="text-xs text-text-light">Consultando a la IA...</p>
+                            </div>
+                        )}
+                        {insights.length > 0 && !isLoadingInsights && (
+                             <div className="flex flex-col h-full">
+                                <div className="flex items-center justify-between mb-3 bg-success bg-opacity-10 p-2 rounded border border-success border-opacity-20">
+                                    <div className="flex items-center text-success text-xs font-semibold">
+                                        <CheckCircle size={14} className="mr-1" />
+                                        Análisis recibido con éxito
                                     </div>
-                                ))}
+                                    {lastUpdated && (
+                                        <span className="text-[10px] text-text-light">
+                                            {lastUpdated.toLocaleTimeString()}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="space-y-3 overflow-y-auto pr-2" style={{maxHeight: '200px'}}>
+                                    {insights.map((insight, index) => (
+                                        <div key={index} className="text-sm border-l-2 border-accent pl-2">
+                                            <h4 className="font-bold text-primary">{insight.title}</h4>
+                                            <p className="text-text-main"><span className="font-semibold">Insight:</span> {insight.insight}</p>
+                                            <p className="text-text-light"><span className="font-semibold">Recomendación:</span> {insight.recommendation}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="mt-auto pt-3">
+                                    <Button variant="secondary" size="sm" className="w-full text-xs" onClick={handleGenerateInsights}>
+                                        Actualizar Análisis
+                                    </Button>
+                                </div>
                             </div>
                         )}
                     </div>
