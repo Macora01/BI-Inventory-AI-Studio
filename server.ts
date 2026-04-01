@@ -173,7 +173,7 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const type = req.query.type;
     let uploadPath = 'public';
-    if (type === 'product') {
+    if (type === 'product' || type === 'product-bulk') {
       uploadPath = 'public/products';
     }
     
@@ -190,6 +190,9 @@ const storage = multer.diskStorage({
       const factoryId = req.query.factoryId;
       const ext = path.extname(file.originalname).toLowerCase();
       cb(null, `${factoryId}${ext}`);
+    } else if (type === 'product-bulk') {
+      // En subida masiva, usamos el nombre original (ej: 2343.jpg)
+      cb(null, file.originalname);
     } else {
       cb(null, file.originalname);
     }
@@ -219,6 +222,25 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
     success: true, 
     filename: req.file.filename,
     path: req.query.type === 'product' ? `/products/${req.file.filename}` : `/${req.file.filename}`
+  });
+});
+
+// Endpoint para subida masiva de imágenes de productos
+app.post('/api/upload-bulk', upload.array('files', 50), (req, res) => {
+  if (!req.files || (req.files as Express.Multer.File[]).length === 0) {
+    return res.status(400).json({ error: 'No se subieron archivos' });
+  }
+  
+  const files = req.files as Express.Multer.File[];
+  const results = files.map(file => ({
+    filename: file.filename,
+    path: `/products/${file.filename}`
+  }));
+
+  res.json({ 
+    success: true, 
+    count: results.length,
+    files: results
   });
 });
 

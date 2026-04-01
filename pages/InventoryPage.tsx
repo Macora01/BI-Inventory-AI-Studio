@@ -10,6 +10,7 @@ import FileUpload from '../components/FileUpload';
 import Papa from 'papaparse';
 import QRScanner from '../components/QRScanner';
 import ProductImage from '../components/ProductImage';
+import BulkImageUpload from '../components/BulkImageUpload';
 import { useToast } from '../hooks/useToast';
 
 /**
@@ -750,6 +751,14 @@ const InventoryPage: React.FC = () => {
                                 title="Subir Ventas"
                                 onFileProcess={processSales} 
                             />
+                        </div>
+
+                        <div className="p-4 border border-accent rounded-lg bg-gray-50">
+                            <h4 className="font-bold text-primary flex items-center mb-2">
+                                <Camera size={18} className="mr-2" /> Subida Masiva de Fotos
+                            </h4>
+                            <p className="text-xs text-text-light mb-3">Sube múltiples fotos de productos de una vez. Los archivos deben llamarse como el ID de Fábrica.</p>
+                            <BulkImageUpload onSuccess={() => setImageRefreshKey(Date.now())} />
                         </div>
                     </div>
 
