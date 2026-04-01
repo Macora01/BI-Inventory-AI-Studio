@@ -2,8 +2,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import Card from '../components/Card';
 import { useInventory } from '../context/InventoryContext';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { DollarSign, Archive, AlertTriangle, Package, CheckCircle, RefreshCw } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { DollarSign, Archive, AlertTriangle, Package, CheckCircle, RefreshCw, PieChart as PieChartIcon } from 'lucide-react';
 import { analyzeInventoryData } from '../services/geminiService';
 import { GeminiInsight } from '../types';
 import Button from '../components/Button';
@@ -14,10 +14,12 @@ import Button from '../components/Button';
  * gráficos de ventas, alertas de stock e insights impulsados por IA de Gemini.
  */
 const DashboardPage: React.FC = () => {
-    const { products, stock, movements, loading, error, fetchData } = useInventory();
+    const { products, stock, movements, locations, loading, error, fetchData } = useInventory();
     const [insights, setInsights] = useState<GeminiInsight[]>([]);
     const [isLoadingInsights, setIsLoadingInsights] = useState(false);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+    const COLORS = ['#A0522D', '#D2691E', '#CD853F', '#F4A460', '#DEB887', '#BC8F8F', '#8B4513'];
 
     // useMemo para calcular valores clave solo cuando sus dependencias cambian.
     // Esto optimiza el rendimiento al evitar recálculos innecesarios en cada render.
@@ -72,6 +74,42 @@ const DashboardPage: React.FC = () => {
             .slice(0, 5) // Toma los 5 primeros
             .map(([name, ventas]) => ({ name, ventas }));
     }, [movements, products]);
+
+    // Distribución de productos por bodega
+    const stockDistribution = useMemo(() => {
+        if (!Array.isArray(stock) || !Array.isArray(locations)) return [];
+        
+        const distribution = stock.reduce((acc, s) => {
+            const location = locations.find(l => l.id === s.locationId);
+            const name = location ? location.name : 'Desconocido';
+            acc[name] = (acc[name] || 0) + s.quantity;
+            return acc;
+        }, {} as Record<string, number>);
+
+        return (Object.entries(distribution) as [string, number][])
+            .filter(([_, value]) => value > 0)
+            .map(([name, value]) => ({ name, value }));
+    }, [stock, locations]);
+
+    // Ventas por sitio (excluyendo Bodega Principal)
+    const salesBySite = useMemo(() => {
+        if (!Array.isArray(movements) || !Array.isArray(locations)) return [];
+        
+        const sales = movements.filter(m => m.type === 'SALE');
+        const distribution = sales.reduce((acc, sale) => {
+            const location = locations.find(l => l.id === sale.fromLocationId);
+            // Excluir si es bodega principal
+            if (location && location.type !== 'MAIN_WAREHOUSE') {
+                const name = location.name;
+                acc[name] = (acc[name] || 0) + (sale.price || 0) * sale.quantity;
+            }
+            return acc;
+        }, {} as Record<string, number>);
+
+        return (Object.entries(distribution) as [string, number][])
+            .filter(([_, value]) => value > 0)
+            .map(([name, value]) => ({ name, value }));
+    }, [movements, locations]);
 
     // Función para solicitar el análisis de IA a Gemini.
     const handleGenerateInsights = async () => {
@@ -195,6 +233,58 @@ const DashboardPage: React.FC = () => {
                                         </div>
                                     </div>
                                 )}
+                            </div>
+                        </Card>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Card title="Distribución de Productos por Bodega">
+                            <div className="h-[300px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={stockDistribution}
+                                            cx="50%"
+                                            cy="50%"
+                                            labelLine={false}
+                                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                            outerRadius={80}
+                                            fill="#8884d8"
+                                            dataKey="value"
+                                        >
+                                            {stockDistribution.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip formatter={(value: number) => `${value.toLocaleString('es-CL')} unidades`} />
+                                        <Legend />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </Card>
+
+                        <Card title="Ventas por Sitio (Monto Total)">
+                            <div className="h-[300px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={salesBySite}
+                                            cx="50%"
+                                            cy="50%"
+                                            labelLine={false}
+                                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                            outerRadius={80}
+                                            fill="#82ca9d"
+                                            dataKey="value"
+                                        >
+                                            {salesBySite.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip formatter={(value: number) => `$${value.toLocaleString('es-CL')}`} />
+                                        <Legend />
+                                    </PieChart>
+                                </ResponsiveContainer>
                             </div>
                         </Card>
                     </div>
