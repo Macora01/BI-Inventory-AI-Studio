@@ -6,13 +6,14 @@ interface ProductImageProps {
   factoryId: string;
   alt: string;
   className?: string;
+  refreshKey?: number | string;
 }
 
 /**
  * Componente que intenta cargar una imagen de producto basada en el factoryId.
  * Prueba con extensiones .jpg y .jpeg antes de mostrar un fallback.
  */
-const ProductImage: React.FC<ProductImageProps> = ({ factoryId, alt, className = "" }) => {
+const ProductImage: React.FC<ProductImageProps> = ({ factoryId, alt, className = "", refreshKey }) => {
   const [src, setSrc] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -30,7 +31,7 @@ const ProductImage: React.FC<ProductImageProps> = ({ factoryId, alt, className =
     const tryNext = () => {
       if (currentIdx < extensions.length) {
         const ext = extensions[currentIdx];
-        const testSrc = `/products/${factoryId}.${ext}`;
+        const testSrc = `/products/${factoryId}.${ext}${refreshKey ? `?t=${refreshKey}` : ''}`;
         
         const img = new Image();
         img.src = testSrc;
@@ -41,7 +42,12 @@ const ProductImage: React.FC<ProductImageProps> = ({ factoryId, alt, className =
         };
         img.onerror = () => {
           currentIdx++;
-          tryNext();
+          if (currentIdx < extensions.length) {
+            tryNext();
+          } else {
+            setError(true);
+            setLoading(false);
+          }
         };
       } else {
         setError(true);
@@ -52,7 +58,7 @@ const ProductImage: React.FC<ProductImageProps> = ({ factoryId, alt, className =
     setLoading(true);
     setError(false);
     tryNext();
-  }, [factoryId]);
+  }, [factoryId, refreshKey]);
 
   if (loading) {
     return (

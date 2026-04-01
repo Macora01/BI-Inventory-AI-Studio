@@ -4,7 +4,7 @@ import Button from '../components/Button';
 import { useInventory } from '../context/InventoryContext';
 import { Location, User, LocationType, LOCATION_TYPE_MAP } from '../types';
 import Modal from '../components/Modal';
-import { Edit, Trash2, Database, CheckCircle2, XCircle, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Edit, Trash2, Database, CheckCircle2, XCircle, RefreshCw, AlertTriangle, Upload, Image as ImageIcon } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 
 const SettingsPage: React.FC = () => {
@@ -25,6 +25,10 @@ const SettingsPage: React.FC = () => {
     
     // Estado para la confirmación de borrado de datos
     const [isConfirmingClear, setIsConfirmingClear] = useState(false);
+
+    // Estado para subida de logo
+    const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [uploadingLogo, setUploadingLogo] = useState(false);
 
     // Efecto para manejar el temporizador de la confirmación de borrado.
     useEffect(() => {
@@ -82,6 +86,31 @@ const SettingsPage: React.FC = () => {
         addToast('La eliminación de datos ha sido cancelada.', 'info');
     };
 
+    const handleLogoUpload = async () => {
+        if (!logoFile) return;
+        setUploadingLogo(true);
+        const formData = new FormData();
+        formData.append('file', logoFile);
+        try {
+            const response = await fetch('/api/upload?type=logo', {
+                method: 'POST',
+                body: formData,
+            });
+            if (response.ok) {
+                addToast('Logo actualizado correctamente. Recarga para ver los cambios.', 'success');
+                setLogoFile(null);
+                setTimeout(() => window.location.reload(), 2000);
+            } else {
+                const data = await response.json();
+                addToast(data.error || 'Error al subir el logo.', 'error');
+            }
+        } catch (err) {
+            addToast('Error de red al subir el logo.', 'error');
+        } finally {
+            setUploadingLogo(false);
+        }
+    };
+
 
     // --- MANEJO DE UBICACIONES ---
     const openLocationModal = (location: Location | null = null) => {
@@ -121,8 +150,41 @@ const SettingsPage: React.FC = () => {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h2 className="text-3xl font-bold text-primary">Configuración</h2>
-                <span className="text-xs bg-accent text-primary px-2 py-1 rounded">v1.0.2</span>
+                <span className="text-xs bg-accent text-primary px-2 py-1 rounded">v1.0.5</span>
             </div>
+
+            {/* Identidad de Marca */}
+            <Card title="Identidad de Marca (Logo)">
+                <div className="p-4 flex flex-col md:flex-row items-center gap-6">
+                    <div className="w-32 h-32 bg-background rounded-lg border-2 border-dashed border-accent flex items-center justify-center overflow-hidden">
+                        <img 
+                            src={`/logo.png?t=${Date.now()}`} 
+                            alt="Logo actual" 
+                            className="max-w-full max-h-full object-contain" 
+                            onError={(e) => (e.currentTarget.src = 'https://via.placeholder.com/150?text=Sin+Logo')} 
+                        />
+                    </div>
+                    <div className="flex-1 space-y-4">
+                        <p className="text-sm text-text-light">Sube el logo de tu empresa. Se recomienda un archivo PNG con fondo transparente. El archivo se guardará como <code className="bg-background p-1 rounded">logo.png</code>.</p>
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                            <input 
+                                type="file" 
+                                accept="image/*" 
+                                onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
+                                className="text-sm text-text-main file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-accent file:text-primary hover:file:bg-opacity-80"
+                            />
+                            <Button 
+                                onClick={handleLogoUpload} 
+                                disabled={!logoFile || uploadingLogo}
+                                className="flex items-center gap-2"
+                            >
+                                <Upload size={16} />
+                                {uploadingLogo ? 'Subiendo...' : 'Actualizar Logo'}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            </Card>
 
             {/* Estado del Sistema - MOVIDO ARRIBA PARA VISIBILIDAD */}
             <Card title="Estado del Sistema (Conexión Base de Datos)">

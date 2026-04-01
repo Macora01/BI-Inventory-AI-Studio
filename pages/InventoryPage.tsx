@@ -10,6 +10,7 @@ import FileUpload from '../components/FileUpload';
 import Papa from 'papaparse';
 import QRScanner from '../components/QRScanner';
 import ProductImage from '../components/ProductImage';
+import { useToast } from '../hooks/useToast';
 
 /**
  * Componente InventoryPage.
@@ -24,6 +25,7 @@ const InventoryPage: React.FC = () => {
         updateStock, addMovement, setInitialData,
         loading, error, fetchData
     } = useInventory();
+    const { addToast } = useToast();
     
     const [searchTerm, setSearchTerm] = useState('');
     
@@ -37,6 +39,11 @@ const InventoryPage: React.FC = () => {
     // Estado para Producto seleccionado (Edición o Nuevo)
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [isEditing, setIsEditing] = useState(false);
+    
+    // Estado para subida de imagen de producto
+    const [productImageFile, setProductImageFile] = useState<File | null>(null);
+    const [uploadingProductImage, setUploadingProductImage] = useState(false);
+    const [imageRefreshKey, setImageRefreshKey] = useState(Date.now());
     
     // Estado para Ajuste de Stock
     const [adjustmentData, setAdjustmentData] = useState({
@@ -86,13 +93,49 @@ const InventoryPage: React.FC = () => {
         try {
             if (isEditing) {
                 await updateProduct(selectedProduct);
+                addToast('Producto actualizado con éxito.', 'success');
+                
+                // Si hay una imagen seleccionada, subirla ahora que el producto está guardado
+                if (productImageFile && selectedProduct.id_fabrica) {
+                    await handleProductImageUpload(selectedProduct.id_fabrica);
+                }
             } else {
                 await addProduct(selectedProduct);
+                addToast('Producto creado con éxito.', 'success');
+                
+                // Si hay una imagen seleccionada, subirla
+                if (productImageFile && selectedProduct.id_fabrica) {
+                    await handleProductImageUpload(selectedProduct.id_fabrica);
+                }
             }
             setIsProductModalOpen(false);
+            setProductImageFile(null);
         } catch (error) {
             // El error ya se muestra en el alert del contexto
             console.error('Error in handleSaveProduct:', error);
+            addToast('Error al guardar el producto.', 'error');
+        }
+    };
+
+    const handleProductImageUpload = async (factoryId: string) => {
+        if (!productImageFile || !factoryId) return;
+        setUploadingProductImage(true);
+        const formData = new FormData();
+        formData.append('file', productImageFile);
+        try {
+            const response = await fetch(`/api/upload?type=product&factoryId=${factoryId}`, {
+                method: 'POST',
+                body: formData,
+            });
+            if (response.ok) {
+                setImageRefreshKey(Date.now());
+            } else {
+                addToast('Error al subir la imagen del producto.', 'error');
+            }
+        } catch (err) {
+            addToast('Error de red al subir la imagen.', 'error');
+        } finally {
+            setUploadingProductImage(false);
         }
     };
 
@@ -397,6 +440,7 @@ const InventoryPage: React.FC = () => {
                                                 factoryId={product.id_fabrica} 
                                                 alt={product.description} 
                                                 className="w-12 h-12" 
+                                                refreshKey={imageRefreshKey}
                                             />
                                         </td>
                                         <td className="px-4 py-4">
@@ -477,10 +521,20 @@ const InventoryPage: React.FC = () => {
                             factoryId={selectedProduct?.id_fabrica || ''} 
                             alt={selectedProduct?.description || 'Producto'} 
                             className="w-full aspect-square mb-4 shadow-md" 
+                            refreshKey={imageRefreshKey}
                         />
-                        <p className="text-[10px] text-text-light text-center italic">
-                            La imagen se carga automáticamente desde /public/products/ usando el Código Fábrica.
-                        </p>
+                        <div className="w-full space-y-2">
+                            <label className="block text-[10px] font-medium text-text-light uppercase tracking-wider">Subir Foto</label>
+                            <input 
+                                type="file" 
+                                accept="image/*" 
+                                onChange={(e) => setProductImageFile(e.target.files?.[0] || null)}
+                                className="block w-full text-[10px] text-text-main file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[10px] file:font-semibold file:bg-accent file:text-primary hover:file:bg-opacity-80"
+                            />
+                            <p className="text-[10px] text-text-light text-center italic">
+                                La imagen se guardará como <code className="bg-background p-0.5 rounded">{selectedProduct?.id_fabrica || 'id_fabrica'}.jpg</code>
+                            </p>
+                        </div>
                     </div>
                     <form onSubmit={handleSaveProduct} className="flex-1 space-y-4">
                     <div>

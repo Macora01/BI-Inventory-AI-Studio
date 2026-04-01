@@ -2,6 +2,8 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
+import multer from 'multer';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import { Pool } from 'pg';
@@ -164,6 +166,61 @@ async function initDb() {
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static('public'));
+
+// Configuración de Multer para subida de archivos
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const type = req.query.type;
+    let uploadPath = 'public';
+    if (type === 'product') {
+      uploadPath = 'public/products';
+    }
+    
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const type = req.query.type;
+    if (type === 'logo') {
+      cb(null, 'logo.png'); // Siempre logo.png para el logo
+    } else if (type === 'product') {
+      const factoryId = req.query.factoryId;
+      const ext = path.extname(file.originalname).toLowerCase();
+      cb(null, `${factoryId}${ext}`);
+    } else {
+      cb(null, file.originalname);
+    }
+  }
+});
+
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    if (extname && mimetype) {
+      return cb(null, true);
+    }
+    cb(new Error('Solo se permiten imágenes (jpeg, jpg, png, gif)'));
+  }
+});
+
+// Endpoint para subir logo o imagen de producto
+app.post('/api/upload', upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No se subió ningún archivo' });
+  }
+  res.json({ 
+    success: true, 
+    filename: req.file.filename,
+    path: req.query.type === 'product' ? `/products/${req.file.filename}` : `/${req.file.filename}`
+  });
+});
 
 // API routes go here
 app.get('/api/health', async (req, res) => {
