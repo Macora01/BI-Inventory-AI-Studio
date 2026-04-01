@@ -34,6 +34,13 @@ interface InventoryContextType {
     addUser: (user: Omit<User, 'id'>) => void;
     updateUser: (user: User) => void;
     deleteUser: (userId: string) => void;
+
+    // Estado de carga y error
+    loading: boolean;
+    error: string | null;
+    dbStatus: { status: string; database: string; time?: string; error?: string } | null;
+    fetchData: () => Promise<void>;
+    checkHealth: () => Promise<void>;
 }
 
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
@@ -48,9 +55,25 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [movements, setMovements] = useState<Movement[]>([]);
     const [locations, setLocations] = useState<Location[]>([]);
     const [users, setUsers] = useState<User[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [dbStatus, setDbStatus] = useState<{ status: string; database: string; time?: string; error?: string } | null>(null);
 
     // ---- CARGA INICIAL DESDE LA API ----
+    const checkHealth = useCallback(async () => {
+        try {
+            const res = await fetch('/api/health');
+            const data = await res.json();
+            setDbStatus(data);
+        } catch (err) {
+            setDbStatus({ status: 'error', database: 'disconnected', error: 'No se pudo contactar con el servidor' });
+        }
+    }, []);
+
     const fetchData = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        checkHealth(); // Verificamos salud en paralelo
         try {
             const [pRes, sRes, mRes, lRes, uRes] = await Promise.all([
                 fetch('/api/products'),
@@ -60,6 +83,14 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
                 fetch('/api/users')
             ]);
 
+            // Verificamos si alguna respuesta no es OK
+            const responses = [pRes, sRes, mRes, lRes, uRes];
+            const failedRes = responses.find(r => !r.ok);
+            if (failedRes) {
+                const errData = await failedRes.json().catch(() => ({ error: 'Unknown error' }));
+                throw new Error(errData.error || `HTTP Error ${failedRes.status}`);
+            }
+
             const pData = await pRes.json();
             const sData = await sRes.json();
             const mData = await mRes.json();
@@ -67,39 +98,24 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
             const uData = await uRes.json();
 
             // Validamos que los datos sean arreglos antes de guardarlos
-            let hasError = false;
-            if (!Array.isArray(pData)) {
-                console.error('Error: /api/products no devolvió un arreglo', pData);
-                hasError = true;
-            }
-            if (!Array.isArray(sData)) {
-                console.error('Error: /api/stock no devolvió un arreglo', sData);
-                hasError = true;
-            }
-            if (!Array.isArray(mData)) {
-                console.error('Error: /api/movements no devolvió un arreglo', mData);
-                hasError = true;
-            }
-            if (!Array.isArray(lData)) {
-                console.error('Error: /api/locations no devolvió un arreglo', lData);
-                hasError = true;
-            }
-            if (!Array.isArray(uData)) {
-                console.error('Error: /api/users no devolvió un arreglo', uData);
-                hasError = true;
+            if (!Array.isArray(pData) || !Array.isArray(sData) || !Array.isArray(mData) || !Array.isArray(lData) || !Array.isArray(uData)) {
+                console.error('Datos inválidos recibidos de la API:', { pData, sData, mData, lData, uData });
+                throw new Error('La base de datos devolvió un formato inesperado. Revisa la conexión.');
             }
 
-            setProducts(Array.isArray(pData) ? pData : []);
-            setStock(Array.isArray(sData) ? sData : []);
-            setMovements(Array.isArray(mData) ? mData.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })) : []);
-            setLocations(Array.isArray(lData) ? lData : []);
-            setUsers(Array.isArray(uData) ? uData : []);
-
-            if (hasError) {
-                console.error('Algunos datos de la API no son arreglos. Revisa la conexión a la base de datos.');
-            }
-        } catch (error) {
-            console.error('Error fetching data:', error);
+            setProducts(pData);
+            setStock(sData);
+            setMovements(mData.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })));
+            setLocations(lData);
+            setUsers(uData);
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Error desconocido al cargar datos';
+            console.error('Error fetching data:', msg);
+            setError(msg);
+            // No limpiamos los arreglos aquí para no borrar la UI si ya había algo, 
+            // pero si es la carga inicial, estarán vacíos.
+        } finally {
+            setLoading(false);
         }
     }, []);
 
@@ -400,7 +416,8 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
             clearProducts, clearLocations, clearUsers,
             addProduct, updateProduct, deleteProduct,
             addLocation, updateLocation, deleteLocation,
-            addUser, updateUser, deleteUser
+            addUser, updateUser, deleteUser,
+            loading, error, dbStatus, fetchData, checkHealth
         }}>
             {children}
         </InventoryContext.Provider>

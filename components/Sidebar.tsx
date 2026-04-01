@@ -37,6 +37,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
       <div className="p-6 text-center border-b border-secondary">
         <h1 className="text-2xl font-bold text-accent">Boa Ideia</h1>
         <p className="text-sm text-background">Gestión de Inventario</p>
+        <p className="text-[10px] text-accent mt-1 opacity-50">v1.0.2 - DB Monitor</p>
       </div>
       <nav className="flex-1 px-4 py-6">
         <ul>

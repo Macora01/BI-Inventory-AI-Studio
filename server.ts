@@ -23,12 +23,15 @@ if (!process.env.DATABASE_URL) {
   console.log(`📡 Intentando conectar a: ${maskedUrl}`);
 }
 
+const sslConfig = process.env.DATABASE_URL?.includes('localhost') || 
+                  process.env.DATABASE_URL?.includes('127.0.0.1') ||
+                  process.env.PGSSLMODE === 'disable'
+                  ? false 
+                  : { rejectUnauthorized: false };
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // En Coolify/Docker interno, a menudo el servidor Postgres no soporta SSL.
-  // Sin embargo, para bases de datos externas (como Supabase/Neon), se requiere SSL.
-  // Usamos una configuración que intenta usar SSL si no es localhost.
-  ssl: process.env.DATABASE_URL?.includes('localhost') || !process.env.DATABASE_URL ? false : { rejectUnauthorized: false }
+  ssl: sslConfig
 });
 
 // Manejador de errores global para el pool
@@ -123,6 +126,15 @@ async function initDb() {
     }
 
     const usersCheck = await client.query('SELECT count(*) as count FROM users');
+    console.log(`📊 Estadísticas de la base de datos:`);
+    const pCount = await client.query('SELECT count(*) as count FROM products');
+    const sCount = await client.query('SELECT count(*) as count FROM stock');
+    const mCount = await client.query('SELECT count(*) as count FROM movements');
+    console.log(`   - Productos: ${pCount.rows[0].count}`);
+    console.log(`   - Stock: ${sCount.rows[0].count}`);
+    console.log(`   - Movimientos: ${mCount.rows[0].count}`);
+    console.log(`   - Usuarios: ${usersCheck.rows[0].count}`);
+
     if (parseInt(usersCheck.rows[0].count) === 0) {
       await client.query("INSERT INTO users (id, username, password, role) VALUES ('user_1', 'admin', 'admin123', 'admin')");
     } else {
@@ -134,6 +146,13 @@ async function initDb() {
     console.log("✅ PostgreSQL Database initialized successfully");
   } catch (err) {
     console.error("❌ Error initializing database:", err);
+    if ((err as any).code === '28P01') {
+      console.error("Error de autenticación: Revisa el usuario y contraseña en DATABASE_URL.");
+    } else if ((err as any).code === 'ECONNREFUSED') {
+      console.error("Conexión rechazada: Asegúrate de que el servidor de base de datos esté corriendo.");
+    } else if ((err as any).message.includes('SSL')) {
+      console.error("Error de SSL: Intenta cambiar la configuración de SSL en server.ts.");
+    }
     // Log details about the connection string (masked for safety)
     const maskedUrl = process.env.DATABASE_URL ? process.env.DATABASE_URL.replace(/:[^:@]+@/, ':****@') : 'NOT_SET';
     console.log(`DATABASE_URL used: ${maskedUrl}`);
@@ -364,7 +383,6 @@ app.delete('/api/users/:id', async (req, res) => {
   }
 });
 
-// Clear Data
 // --- CLEAR DATA ENDPOINTS ---
 
 app.post('/api/clear/products', async (req, res) => {
@@ -451,16 +469,10 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    // En Express 5, los comodines en rutas pueden ser problemáticos. 
-    // Usar un middleware de fallback con app.use() es la forma más robusta de manejar una SPA.
-    app.use((req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
   }
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server ready at http://0.0.0.0:${PORT}`);
-    console.log(`📁 Serving static files from: ${path.join(process.cwd(), 'dist')}`);
   });
 }
 

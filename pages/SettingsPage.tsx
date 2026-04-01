@@ -4,14 +4,15 @@ import Button from '../components/Button';
 import { useInventory } from '../context/InventoryContext';
 import { Location, User, LocationType, LOCATION_TYPE_MAP } from '../types';
 import Modal from '../components/Modal';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, Database, CheckCircle2, XCircle, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 
 const SettingsPage: React.FC = () => {
     const { 
         locations, addLocation, updateLocation, deleteLocation,
         users, addUser, updateUser, deleteUser,
-        clearAllData, clearProducts, clearLocations, clearUsers
+        clearAllData, clearProducts, clearLocations, clearUsers,
+        dbStatus, checkHealth, error
     } = useInventory();
     const { addToast } = useToast();
 
@@ -118,7 +119,73 @@ const SettingsPage: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <h2 className="text-3xl font-bold text-primary">Configuración</h2>
+            <div className="flex items-center justify-between">
+                <h2 className="text-3xl font-bold text-primary">Configuración</h2>
+                <span className="text-xs bg-accent text-primary px-2 py-1 rounded">v1.0.2</span>
+            </div>
+
+            {/* Estado del Sistema - MOVIDO ARRIBA PARA VISIBILIDAD */}
+            <Card title="Estado del Sistema (Conexión Base de Datos)">
+                <div className="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center space-x-4">
+                        <div className={`p-3 rounded-full ${dbStatus?.database === 'connected' ? 'bg-success bg-opacity-10 text-success' : 'bg-danger bg-opacity-10 text-danger'}`}>
+                            <Database size={24} />
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-text-main">Estado de la Base de Datos</h4>
+                            <div className="flex items-center space-x-2">
+                                {dbStatus?.database === 'connected' ? (
+                                    <>
+                                        <CheckCircle2 size={14} className="text-success" />
+                                        <span className="text-sm text-success font-medium">Conectado a PostgreSQL</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <XCircle size={14} className="text-danger" />
+                                        <span className="text-sm text-danger font-medium">Desconectado (Usando DB Local Temporal)</span>
+                                    </>
+                                )}
+                            </div>
+                            {dbStatus?.error && (
+                                <p className="text-xs text-danger mt-1 bg-danger bg-opacity-5 p-1 rounded border border-danger border-opacity-10">
+                                    Error: {dbStatus.error}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                    <Button 
+                        variant="secondary" 
+                        size="sm" 
+                        onClick={() => {
+                            addToast('Verificando conexión...', 'info');
+                            checkHealth();
+                        }}
+                        className="flex items-center space-x-2"
+                    >
+                        <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                        <span>Verificar Conexión</span>
+                    </Button>
+                </div>
+            </Card>
+
+            {/* Alerta de Base de Datos no configurada */}
+            {dbStatus?.database === 'disconnected' && (
+                <div className="bg-danger bg-opacity-10 border-2 border-danger p-6 rounded-xl flex flex-col md:flex-row items-center gap-6 animate-pulse">
+                    <div className="bg-danger text-white p-4 rounded-full">
+                        <AlertTriangle size={32} />
+                    </div>
+                    <div className="flex-1 text-center md:text-left">
+                        <h3 className="text-xl font-bold text-danger mb-1">¡Atención! Base de Datos no Detectada</h3>
+                        <p className="text-text-main">
+                            La aplicación no está conectada a una base de datos externa. 
+                            Esto puede causar que los datos se pierdan al reiniciar el servidor o que solo funcione el usuario administrador original.
+                        </p>
+                        <p className="text-sm text-text-light mt-2">
+                            Por favor, asegúrate de configurar la variable <code className="bg-background p-1 rounded font-mono text-danger">DATABASE_URL</code> en el menú de Configuración del editor.
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* Gestión de Ubicaciones */}
             <Card title="Gestión de Ubicaciones">

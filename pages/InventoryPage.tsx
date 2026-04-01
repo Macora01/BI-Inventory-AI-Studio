@@ -5,7 +5,7 @@ import { useInventory } from '../context/InventoryContext';
 import { Product, Stock, MovementType, Location, ParsedInitialInventory, ParsedTransfer, ParsedSale } from '../types';
 import Button from '../components/Button';
 import Modal from '../components/Modal';
-import { Search, Plus, Edit, Trash2, ArrowUpCircle, ArrowDownCircle, Info, Upload, Package, FileText, ShoppingCart, RefreshCw, Camera } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, ArrowUpCircle, ArrowDownCircle, Info, Upload, Package, FileText, ShoppingCart, RefreshCw, Camera, AlertCircle } from 'lucide-react';
 import FileUpload from '../components/FileUpload';
 import Papa from 'papaparse';
 import QRScanner from '../components/QRScanner';
@@ -20,7 +20,8 @@ const InventoryPage: React.FC = () => {
     const { 
         products, stock, locations, 
         addProduct, updateProduct, deleteProduct, 
-        updateStock, addMovement, setInitialData 
+        updateStock, addMovement, setInitialData,
+        loading, error, fetchData
     } = useInventory();
     
     const [searchTerm, setSearchTerm] = useState('');
@@ -355,7 +356,32 @@ const InventoryPage: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredProducts.map(product => {
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={locations.length + 4} className="text-center py-12">
+                                        <div className="flex flex-col items-center justify-center space-y-4">
+                                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                                            <p className="text-text-light">Cargando inventario...</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : error ? (
+                                <tr>
+                                    <td colSpan={locations.length + 4} className="text-center py-12">
+                                        <div className="flex flex-col items-center justify-center space-y-4 text-danger">
+                                            <AlertCircle size={48} />
+                                            <p className="font-bold">Error de Conexión</p>
+                                            <p className="text-sm max-w-md">{error}</p>
+                                            <button 
+                                                onClick={() => fetchData()}
+                                                className="mt-4 px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark transition-colors"
+                                            >
+                                                Reintentar Conexión
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : filteredProducts.map(product => {
                                 const totalStock = stock
                                     .filter(s => s.productId === product.id_venta)
                                     .reduce((sum, s) => sum + s.quantity, 0);

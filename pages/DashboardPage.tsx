@@ -14,7 +14,7 @@ import Button from '../components/Button';
  * gráficos de ventas, alertas de stock e insights impulsados por IA de Gemini.
  */
 const DashboardPage: React.FC = () => {
-    const { products, stock, movements } = useInventory();
+    const { products, stock, movements, loading, error, fetchData } = useInventory();
     const [insights, setInsights] = useState<GeminiInsight[]>([]);
     const [isLoadingInsights, setIsLoadingInsights] = useState(false);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -95,78 +95,111 @@ const DashboardPage: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <h2 className="text-3xl font-bold text-primary">Dashboard Ejecutivo</h2>
+            <div className="flex justify-between items-center">
+                <h2 className="text-3xl font-bold text-primary">Dashboard Ejecutivo</h2>
+                {error && (
+                    <button 
+                        onClick={() => fetchData()}
+                        className="flex items-center space-x-2 px-3 py-1 bg-danger bg-opacity-10 text-danger rounded-md hover:bg-opacity-20 transition-all text-sm font-medium border border-danger border-opacity-20"
+                    >
+                        <AlertTriangle size={16} />
+                        <span>Error de Conexión - Reintentar</span>
+                    </button>
+                )}
+            </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard icon={DollarSign} title="Valor del Inventario" value={`$${inventoryValue.toLocaleString('es-CL')}`} />
-                <StatCard icon={Archive} title="Unidades Totales" value={totalUnits.toLocaleString('es-CL')} />
-                <StatCard icon={Package} title="Productos Únicos (SKU)" value={products.length.toLocaleString('es-CL')} />
-                <StatCard icon={AlertTriangle} title="Items con Bajo Stock" value={lowStockItems.toLocaleString('es-CL')} variant="danger" />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-2" title="Top 5 Productos Vendidos">
-                   <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={topSellingProducts}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="name" angle={-15} textAnchor="end" height={50} tick={{ fill: '#5D4037' }} />
-                            <YAxis tick={{ fill: '#5D4037' }} />
-                            <Tooltip contentStyle={{ backgroundColor: '#F5F5DC', border: '1px solid #dec290' }} />
-                            <Legend />
-                            <Bar dataKey="ventas" fill="#A0522D" name="Unidades Vendidas" />
-                        </BarChart>
-                    </ResponsiveContainer>
+            {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-pulse">
+                    {[1, 2, 3, 4].map(i => (
+                        <div key={i} className="h-32 bg-accent bg-opacity-20 rounded-xl"></div>
+                    ))}
+                </div>
+            ) : error ? (
+                <Card className="p-12 text-center flex flex-col items-center justify-center space-y-4">
+                    <AlertTriangle size={64} className="text-danger" />
+                    <h3 className="text-xl font-bold text-text-main">No se pudo cargar la información</h3>
+                    <p className="text-text-light max-w-md">
+                        Hubo un problema al conectar con la base de datos. Por favor, verifica tu conexión o intenta de nuevo.
+                    </p>
+                    <p className="text-xs text-danger bg-danger bg-opacity-5 p-2 rounded border border-danger border-opacity-10">
+                        {error}
+                    </p>
+                    <Button onClick={() => fetchData()}>Reintentar Carga</Button>
                 </Card>
-
-                <Card title="Análisis con IA (Gemini)">
-                    <div className='flex flex-col h-full'>
-                        {insights.length === 0 && !isLoadingInsights && (
-                            <div className="text-center my-auto">
-                                <p className="text-text-light mb-4">Obtenga insights y recomendaciones sobre su inventario.</p>
-                                <Button onClick={handleGenerateInsights} disabled={isLoadingInsights}>
-                                    Generar Análisis
-                                </Button>
-                            </div>
-                        )}
-                        {isLoadingInsights && (
-                            <div className="text-center my-auto">
-                                <RefreshCw className="w-8 h-8 text-primary animate-spin mx-auto mb-2" />
-                                <p className="text-text-main">Analizando datos...</p>
-                                <p className="text-xs text-text-light">Consultando a la IA...</p>
-                            </div>
-                        )}
-                        {insights.length > 0 && !isLoadingInsights && (
-                             <div className="flex flex-col h-full">
-                                <div className="flex items-center justify-between mb-3 bg-success bg-opacity-10 p-2 rounded border border-success border-opacity-20">
-                                    <div className="flex items-center text-success text-xs font-semibold">
-                                        <CheckCircle size={14} className="mr-1" />
-                                        Análisis recibido con éxito
-                                    </div>
-                                    {lastUpdated && (
-                                        <span className="text-[10px] text-text-light">
-                                            {lastUpdated.toLocaleTimeString()}
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="space-y-3 overflow-y-auto pr-2" style={{maxHeight: '200px'}}>
-                                    {insights.map((insight, index) => (
-                                        <div key={index} className="text-sm border-l-2 border-accent pl-2">
-                                            <h4 className="font-bold text-primary">{insight.title}</h4>
-                                            <p className="text-text-main"><span className="font-semibold">Insight:</span> {insight.insight}</p>
-                                            <p className="text-text-light"><span className="font-semibold">Recomendación:</span> {insight.recommendation}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="mt-auto pt-3">
-                                    <Button variant="secondary" size="sm" className="w-full text-xs" onClick={handleGenerateInsights}>
-                                        Actualizar Análisis
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
+            ) : (
+                <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <StatCard icon={DollarSign} title="Valor del Inventario" value={`$${inventoryValue.toLocaleString('es-CL')}`} />
+                        <StatCard icon={Archive} title="Unidades Totales" value={totalUnits.toLocaleString('es-CL')} />
+                        <StatCard icon={Package} title="Productos Únicos (SKU)" value={products.length.toLocaleString('es-CL')} />
+                        <StatCard icon={AlertTriangle} title="Items con Bajo Stock" value={lowStockItems.toLocaleString('es-CL')} variant="danger" />
                     </div>
-                </Card>
-            </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <Card className="lg:col-span-2" title="Top 5 Productos Vendidos">
+                           <ResponsiveContainer width="100%" height={300}>
+                                <BarChart data={topSellingProducts}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis dataKey="name" angle={-15} textAnchor="end" height={50} tick={{ fill: '#5D4037' }} />
+                                    <YAxis tick={{ fill: '#5D4037' }} />
+                                    <Tooltip contentStyle={{ backgroundColor: '#F5F5DC', border: '1px solid #dec290' }} />
+                                    <Legend />
+                                    <Bar dataKey="ventas" fill="#A0522D" name="Unidades Vendidas" />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </Card>
+
+                        <Card title="Análisis con IA (Gemini)">
+                            <div className='flex flex-col h-full'>
+                                {insights.length === 0 && !isLoadingInsights && (
+                                    <div className="text-center my-auto">
+                                        <p className="text-text-light mb-4">Obtenga insights y recomendaciones sobre su inventario.</p>
+                                        <Button onClick={handleGenerateInsights} disabled={isLoadingInsights}>
+                                            Generar Análisis
+                                        </Button>
+                                    </div>
+                                )}
+                                {isLoadingInsights && (
+                                    <div className="text-center my-auto">
+                                        <RefreshCw className="w-8 h-8 text-primary animate-spin mx-auto mb-2" />
+                                        <p className="text-text-main">Analizando datos...</p>
+                                        <p className="text-xs text-text-light">Consultando a la IA...</p>
+                                    </div>
+                                )}
+                                {insights.length > 0 && !isLoadingInsights && (
+                                     <div className="flex flex-col h-full">
+                                        <div className="flex items-center justify-between mb-3 bg-success bg-opacity-10 p-2 rounded border border-success border-opacity-20">
+                                            <div className="flex items-center text-success text-xs font-semibold">
+                                                <CheckCircle size={14} className="mr-1" />
+                                                Análisis recibido con éxito
+                                            </div>
+                                            {lastUpdated && (
+                                                <span className="text-[10px] text-text-light">
+                                                    {lastUpdated.toLocaleTimeString()}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="space-y-3 overflow-y-auto pr-2" style={{maxHeight: '200px'}}>
+                                            {insights.map((insight, index) => (
+                                                <div key={index} className="text-sm border-l-2 border-accent pl-2">
+                                                    <h4 className="font-bold text-primary">{insight.title}</h4>
+                                                    <p className="text-text-main"><span className="font-semibold">Insight:</span> {insight.insight}</p>
+                                                    <p className="text-text-light"><span className="font-semibold">Recomendación:</span> {insight.recommendation}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="mt-auto pt-3">
+                                            <Button variant="secondary" size="sm" className="w-full text-xs" onClick={handleGenerateInsights}>
+                                                Actualizar Análisis
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </Card>
+                    </div>
+                </>
+            )}
         </div>
     );
 };
