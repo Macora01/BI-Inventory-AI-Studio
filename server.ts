@@ -26,8 +26,9 @@ if (!process.env.DATABASE_URL) {
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   // En Coolify/Docker interno, a menudo el servidor Postgres no soporta SSL.
-  // Desactivamos SSL por defecto para evitar el error "The server does not support SSL connections".
-  ssl: false
+  // Sin embargo, para bases de datos externas (como Supabase/Neon), se requiere SSL.
+  // Usamos una configuración que intenta usar SSL si no es localhost.
+  ssl: process.env.DATABASE_URL?.includes('localhost') || !process.env.DATABASE_URL ? false : { rejectUnauthorized: false }
 });
 
 // Manejador de errores global para el pool
@@ -145,8 +146,22 @@ app.use(cors());
 app.use(express.json());
 
 // API routes go here
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok" });
+app.get('/api/health', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT NOW()');
+    res.json({ 
+      status: 'ok', 
+      database: 'connected', 
+      time: result.rows[0].now,
+      env: process.env.NODE_ENV
+    });
+  } catch (err) {
+    res.status(500).json({ 
+      status: 'error', 
+      database: 'disconnected', 
+      error: (err as Error).message 
+    });
+  }
 });
 
 // Products

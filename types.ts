@@ -14,6 +14,7 @@ export interface Product {
   id_fabrica: string;
   description: string;
   minStock?: number;
+  initialStock?: number;
 }
 
 export interface Stock {

@@ -66,7 +66,7 @@ const InventoryPage: React.FC = () => {
 
     // Manejadores de Producto
     const handleOpenNewProduct = () => {
-        setSelectedProduct({ id_venta: '', id_fabrica: '', description: '', price: 0, cost: 0, minStock: 2 });
+        setSelectedProduct({ id_venta: '', id_fabrica: '', description: '', price: 0, cost: 0, minStock: 2, initialStock: 0 });
         setIsEditing(false);
         setIsProductModalOpen(true);
     };
@@ -81,12 +81,17 @@ const InventoryPage: React.FC = () => {
         e.preventDefault();
         if (!selectedProduct) return;
         
-        if (isEditing) {
-            await updateProduct(selectedProduct);
-        } else {
-            await addProduct(selectedProduct);
+        try {
+            if (isEditing) {
+                await updateProduct(selectedProduct);
+            } else {
+                await addProduct(selectedProduct);
+            }
+            setIsProductModalOpen(false);
+        } catch (error) {
+            // El error ya se muestra en el alert del contexto
+            console.error('Error in handleSaveProduct:', error);
         }
-        setIsProductModalOpen(false);
     };
 
     const handleDeleteProduct = async (productId: string) => {
@@ -506,18 +511,33 @@ const InventoryPage: React.FC = () => {
                             />
                         </div>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-text-main">Stock Mínimo (Total Sistema)</label>
-                        <input 
-                            type="number" 
-                            required
-                            min="0"
-                            className="mt-1 block w-full p-2 border border-accent rounded-md bg-white"
-                            value={selectedProduct?.minStock ?? 2}
-                            onChange={(e) => setSelectedProduct(prev => prev ? { ...prev, minStock: Number(e.target.value) } : null)}
-                        />
-                        <p className="text-xs text-text-light mt-1">El sistema alertará cuando la suma de todas las bodegas sea menor a este valor.</p>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-text-main">Stock Mínimo</label>
+                            <input 
+                                type="number" 
+                                required
+                                min="0"
+                                className="mt-1 block w-full p-2 border border-accent rounded-md bg-white"
+                                value={selectedProduct?.minStock ?? 2}
+                                onChange={(e) => setSelectedProduct(prev => prev ? { ...prev, minStock: Number(e.target.value) } : null)}
+                            />
+                        </div>
+                        {!isEditing && (
+                            <div>
+                                <label className="block text-sm font-medium text-text-main">Stock Inicial</label>
+                                <input 
+                                    type="number" 
+                                    required
+                                    min="0"
+                                    className="mt-1 block w-full p-2 border border-accent rounded-md bg-white"
+                                    value={selectedProduct?.initialStock || 0}
+                                    onChange={(e) => setSelectedProduct(prev => prev ? { ...prev, initialStock: Number(e.target.value) } : null)}
+                                />
+                            </div>
+                        )}
                     </div>
+                    <p className="text-xs text-text-light mt-1">El sistema alertará cuando la suma de todas las bodegas sea menor al stock mínimo.</p>
                     <div className="flex justify-end space-x-2 pt-4">
                         <Button type="button" variant="secondary" onClick={() => setIsProductModalOpen(false)}>Cancelar</Button>
                         <Button type="submit">Guardar Producto</Button>

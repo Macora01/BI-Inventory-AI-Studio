@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
-import { Product, Stock, Movement, Location, User } from '../types';
+import { Product, Stock, Movement, Location, User, MovementType } from '../types';
 import { INITIAL_LOCATIONS, INITIAL_USERS } from '../constants';
 
 // Define la estructura de datos que proporcionará el contexto.
@@ -60,16 +60,34 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
                 fetch('/api/users')
             ]);
 
-            const [pData, sData, mData, lData, uData] = await Promise.all([
-                pRes.json(), sRes.json(), mRes.json(), lRes.json(), uRes.json()
-            ]);
+            const pData = await pRes.json();
+            const sData = await sRes.json();
+            const mData = await mRes.json();
+            const lData = await lRes.json();
+            const uData = await uRes.json();
 
             // Validamos que los datos sean arreglos antes de guardarlos
-            if (!Array.isArray(pData)) console.error('Error: /api/products no devolvió un arreglo', pData);
-            if (!Array.isArray(sData)) console.error('Error: /api/stock no devolvió un arreglo', sData);
-            if (!Array.isArray(mData)) console.error('Error: /api/movements no devolvió un arreglo', mData);
-            if (!Array.isArray(lData)) console.error('Error: /api/locations no devolvió un arreglo', lData);
-            if (!Array.isArray(uData)) console.error('Error: /api/users no devolvió un arreglo', uData);
+            let hasError = false;
+            if (!Array.isArray(pData)) {
+                console.error('Error: /api/products no devolvió un arreglo', pData);
+                hasError = true;
+            }
+            if (!Array.isArray(sData)) {
+                console.error('Error: /api/stock no devolvió un arreglo', sData);
+                hasError = true;
+            }
+            if (!Array.isArray(mData)) {
+                console.error('Error: /api/movements no devolvió un arreglo', mData);
+                hasError = true;
+            }
+            if (!Array.isArray(lData)) {
+                console.error('Error: /api/locations no devolvió un arreglo', lData);
+                hasError = true;
+            }
+            if (!Array.isArray(uData)) {
+                console.error('Error: /api/users no devolvió un arreglo', uData);
+                hasError = true;
+            }
 
             setProducts(Array.isArray(pData) ? pData : []);
             setStock(Array.isArray(sData) ? sData : []);
@@ -77,7 +95,7 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
             setLocations(Array.isArray(lData) ? lData : []);
             setUsers(Array.isArray(uData) ? uData : []);
 
-            if (!Array.isArray(pData) || !Array.isArray(sData) || !Array.isArray(mData) || !Array.isArray(lData) || !Array.isArray(uData)) {
+            if (hasError) {
                 console.error('Algunos datos de la API no son arreglos. Revisa la conexión a la base de datos.');
             }
         } catch (error) {
@@ -159,11 +177,17 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
     // ---- FUNCIONES CRUD PARA PRODUCTOS ----
     const addProduct = useCallback(async (product: Product) => {
         try {
-            await fetch('/api/products', {
+            const response = await fetch('/api/products', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(product)
             });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Error al guardar el producto');
+            }
+
             setProducts(prev => {
                 const exists = prev.some(p => p.id_venta === product.id_venta);
                 if (exists) {
@@ -171,31 +195,77 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
                 }
                 return [...prev, product];
             });
+
+            // Si hay stock inicial, lo agregamos a la bodega principal
+            if (product.initialStock && product.initialStock > 0) {
+                // Esperamos a que las locaciones estén cargadas
+                let currentLocations = locations;
+                if (currentLocations.length === 0) {
+                    const lRes = await fetch('/api/locations');
+                    currentLocations = await lRes.json();
+                    if (Array.isArray(currentLocations)) {
+                        setLocations(currentLocations);
+                    } else {
+                        currentLocations = [];
+                    }
+                }
+
+                const mainLoc = currentLocations.find(l => l.id === 'main_warehouse' || l.id === 'loc_central') || currentLocations[0];
+                if (mainLoc) {
+                    await updateStock(product.id_venta, mainLoc.id, product.initialStock);
+                    await addMovement({
+                        productId: product.id_venta,
+                        quantity: product.initialStock,
+                        type: MovementType.INITIAL_LOAD,
+                        toLocationId: mainLoc.id,
+                        relatedFile: 'Carga Inicial Manual'
+                    });
+                }
+            }
+            
+            // Recargar datos para asegurar consistencia
+            await fetchData();
         } catch (error) {
             console.error('Error adding product:', error);
+            alert('Error al guardar el producto: ' + (error as Error).message);
+            throw error;
         }
-    }, []);
+    }, [locations, updateStock, addMovement]);
 
     const updateProduct = useCallback(async (product: Product) => {
         try {
-            await fetch('/api/products', {
+            const response = await fetch('/api/products', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(product)
             });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Error al actualizar el producto');
+            }
             setProducts(prev => prev.map(p => p.id_venta === product.id_venta ? product : p));
+            await fetchData();
         } catch (error) {
             console.error('Error updating product:', error);
+            alert('Error al actualizar el producto: ' + (error as Error).message);
+            throw error;
         }
     }, []);
 
     const deleteProduct = useCallback(async (productId: string) => {
         try {
-            await fetch(`/api/products/${productId}`, { method: 'DELETE' });
+            const response = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Error al eliminar el producto');
+            }
             setProducts(prev => prev.filter(p => p.id_venta !== productId));
             setStock(prev => prev.filter(s => s.productId !== productId));
+            await fetchData();
         } catch (error) {
             console.error('Error deleting product:', error);
+            alert('Error al eliminar el producto: ' + (error as Error).message);
+            throw error;
         }
     }, []);
 
