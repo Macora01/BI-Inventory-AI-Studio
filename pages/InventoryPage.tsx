@@ -522,7 +522,8 @@ const InventoryPage: React.FC = () => {
                                 type="number" 
                                 required
                                 className="mt-1 block w-full p-2 border border-accent rounded-md bg-white"
-                                value={selectedProduct?.price || 0}
+                                value={selectedProduct?.price || ''}
+                                placeholder="0"
                                 onChange={(e) => setSelectedProduct(prev => prev ? { ...prev, price: Number(e.target.value) } : null)}
                             />
                         </div>
@@ -532,7 +533,8 @@ const InventoryPage: React.FC = () => {
                                 type="number" 
                                 required
                                 className="mt-1 block w-full p-2 border border-accent rounded-md bg-white"
-                                value={selectedProduct?.cost || 0}
+                                value={selectedProduct?.cost || ''}
+                                placeholder="0"
                                 onChange={(e) => setSelectedProduct(prev => prev ? { ...prev, cost: Number(e.target.value) } : null)}
                             />
                         </div>
@@ -545,7 +547,8 @@ const InventoryPage: React.FC = () => {
                                 required
                                 min="0"
                                 className="mt-1 block w-full p-2 border border-accent rounded-md bg-white"
-                                value={selectedProduct?.minStock ?? 2}
+                                value={selectedProduct?.minStock || ''}
+                                placeholder="0"
                                 onChange={(e) => setSelectedProduct(prev => prev ? { ...prev, minStock: Number(e.target.value) } : null)}
                             />
                         </div>
@@ -557,7 +560,8 @@ const InventoryPage: React.FC = () => {
                                     required
                                     min="0"
                                     className="mt-1 block w-full p-2 border border-accent rounded-md bg-white"
-                                    value={selectedProduct?.initialStock || 0}
+                                    value={selectedProduct?.initialStock || ''}
+                                    placeholder="0"
                                     onChange={(e) => setSelectedProduct(prev => prev ? { ...prev, initialStock: Number(e.target.value) } : null)}
                                 />
                             </div>
@@ -603,7 +607,8 @@ const InventoryPage: React.FC = () => {
                             min="1"
                             required
                             className="mt-1 block w-full p-2 border border-accent rounded-md bg-white"
-                            value={adjustmentData.quantity}
+                            value={adjustmentData.quantity || ''}
+                            placeholder="0"
                             onChange={(e) => setAdjustmentData(prev => ({ ...prev, quantity: Number(e.target.value) }))}
                         />
                     </div>

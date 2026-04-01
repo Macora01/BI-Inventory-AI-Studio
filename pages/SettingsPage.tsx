@@ -12,7 +12,7 @@ const SettingsPage: React.FC = () => {
         locations, addLocation, updateLocation, deleteLocation,
         users, addUser, updateUser, deleteUser,
         clearAllData, clearProducts, clearLocations, clearUsers,
-        dbStatus, checkHealth, error
+        dbStatus, checkHealth, error, loading
     } = useInventory();
     const { addToast } = useToast();
 
