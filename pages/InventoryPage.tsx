@@ -5,9 +5,10 @@ import { useInventory } from '../context/InventoryContext';
 import { Product, Stock, MovementType, Location, ParsedInitialInventory, ParsedTransfer, ParsedSale } from '../types';
 import Button from '../components/Button';
 import Modal from '../components/Modal';
-import { Search, Plus, Edit, Trash2, ArrowUpCircle, ArrowDownCircle, Info, Upload, Package, FileText, ShoppingCart, RefreshCw } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, ArrowUpCircle, ArrowDownCircle, Info, Upload, Package, FileText, ShoppingCart, RefreshCw, Camera } from 'lucide-react';
 import FileUpload from '../components/FileUpload';
 import Papa from 'papaparse';
+import QRScanner from '../components/QRScanner';
 
 /**
  * Componente InventoryPage.
@@ -28,6 +29,8 @@ const InventoryPage: React.FC = () => {
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
     const [isAdjustmentModalOpen, setIsAdjustmentModalOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
+    const [qrScannerTarget, setQRScannerTarget] = useState<'search' | 'product_id' | 'factory_id'>('search');
     
     // Estado para Producto seleccionado (Edición o Nuevo)
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -282,6 +285,23 @@ const InventoryPage: React.FC = () => {
         });
     };
 
+    const handleQRScan = (decodedText: string) => {
+        const upperCode = decodedText.toUpperCase();
+        if (qrScannerTarget === 'search') {
+            setSearchTerm(upperCode);
+        } else if (qrScannerTarget === 'product_id') {
+            setSelectedProduct(prev => prev ? { ...prev, id_venta: upperCode } : null);
+        } else if (qrScannerTarget === 'factory_id') {
+            setSelectedProduct(prev => prev ? { ...prev, id_fabrica: upperCode } : null);
+        }
+        setIsQRScannerOpen(false);
+    };
+
+    const openScanner = (target: 'search' | 'product_id' | 'factory_id') => {
+        setQRScannerTarget(target);
+        setIsQRScannerOpen(true);
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -297,15 +317,22 @@ const InventoryPage: React.FC = () => {
             </div>
 
             <Card>
-                <div className="mb-4 flex items-center bg-white border border-accent rounded-md px-3 py-2 max-w-sm focus-within:ring-2 focus-within:ring-secondary">
+                <div className="mb-4 flex items-center bg-white border border-accent rounded-md px-3 py-2 max-w-md focus-within:ring-2 focus-within:ring-secondary">
                     <Search size={20} className="text-text-light mr-2" />
                     <input
                         type="text"
                         placeholder="Buscar por descripción, código venta o fábrica..."
-                        className="w-full bg-transparent focus:outline-none text-text-main"
+                        className="flex-grow bg-transparent focus:outline-none text-text-main"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
+                    <button 
+                        onClick={() => openScanner('search')}
+                        className="ml-2 p-1 text-primary hover:bg-accent hover:bg-opacity-20 rounded transition-colors"
+                        title="Buscar por QR/Barcode"
+                    >
+                        <Camera size={20} />
+                    </button>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -407,23 +434,45 @@ const InventoryPage: React.FC = () => {
                 <form onSubmit={handleSaveProduct} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-text-main">Código Venta (ID Único)</label>
-                        <input 
-                            type="text" 
-                            required
-                            disabled={isEditing}
-                            className="mt-1 block w-full p-2 border border-accent rounded-md bg-white disabled:bg-gray-100"
-                            value={selectedProduct?.id_venta || ''}
-                            onChange={(e) => setSelectedProduct(prev => prev ? { ...prev, id_venta: e.target.value } : null)}
-                        />
+                        <div className="mt-1 flex rounded-md shadow-sm">
+                            <input 
+                                type="text" 
+                                required
+                                disabled={isEditing}
+                                className="flex-grow p-2 border border-accent rounded-l-md bg-white disabled:bg-gray-100"
+                                value={selectedProduct?.id_venta || ''}
+                                onChange={(e) => setSelectedProduct(prev => prev ? { ...prev, id_venta: e.target.value } : null)}
+                            />
+                            {!isEditing && (
+                                <button
+                                    type="button"
+                                    onClick={() => openScanner('product_id')}
+                                    className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-accent bg-accent bg-opacity-20 text-primary hover:bg-opacity-40 transition-colors"
+                                    title="Escanear Código"
+                                >
+                                    <Camera size={20} />
+                                </button>
+                            )}
+                        </div>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-text-main">Código Fábrica</label>
-                        <input 
-                            type="text" 
-                            className="mt-1 block w-full p-2 border border-accent rounded-md bg-white"
-                            value={selectedProduct?.id_fabrica || ''}
-                            onChange={(e) => setSelectedProduct(prev => prev ? { ...prev, id_fabrica: e.target.value } : null)}
-                        />
+                        <div className="mt-1 flex rounded-md shadow-sm">
+                            <input 
+                                type="text" 
+                                className="flex-grow p-2 border border-accent rounded-l-md bg-white"
+                                value={selectedProduct?.id_fabrica || ''}
+                                onChange={(e) => setSelectedProduct(prev => prev ? { ...prev, id_fabrica: e.target.value } : null)}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => openScanner('factory_id')}
+                                className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-accent bg-accent bg-opacity-20 text-primary hover:bg-opacity-40 transition-colors"
+                                title="Escanear Código"
+                            >
+                                <Camera size={20} />
+                            </button>
+                        </div>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-text-main">Descripción</label>
@@ -592,6 +641,18 @@ const InventoryPage: React.FC = () => {
                     </div>
                 </div>
             </Modal>
+
+            {isQRScannerOpen && (
+                <QRScanner 
+                    onScan={handleQRScan} 
+                    onClose={() => setIsQRScannerOpen(false)} 
+                    title={
+                        qrScannerTarget === 'search' ? "Buscar Producto" : 
+                        qrScannerTarget === 'product_id' ? "Escanear Código Venta" : 
+                        "Escanear Código Fábrica"
+                    }
+                />
+            )}
         </div>
     );
 };

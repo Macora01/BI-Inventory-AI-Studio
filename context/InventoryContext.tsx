@@ -65,6 +65,12 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
             ]);
 
             // Validamos que los datos sean arreglos antes de guardarlos
+            if (!Array.isArray(pData)) console.error('Error: /api/products no devolvió un arreglo', pData);
+            if (!Array.isArray(sData)) console.error('Error: /api/stock no devolvió un arreglo', sData);
+            if (!Array.isArray(mData)) console.error('Error: /api/movements no devolvió un arreglo', mData);
+            if (!Array.isArray(lData)) console.error('Error: /api/locations no devolvió un arreglo', lData);
+            if (!Array.isArray(uData)) console.error('Error: /api/users no devolvió un arreglo', uData);
+
             setProducts(Array.isArray(pData) ? pData : []);
             setStock(Array.isArray(sData) ? sData : []);
             setMovements(Array.isArray(mData) ? mData.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })) : []);

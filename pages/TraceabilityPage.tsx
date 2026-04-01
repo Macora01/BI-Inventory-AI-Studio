@@ -4,6 +4,8 @@ import Button from '../components/Button';
 import { useInventory } from '../context/InventoryContext';
 import { Movement, MovementType } from '../types';
 import { MOVEMENT_TYPE_MAP } from '../constants';
+import { Camera } from 'lucide-react';
+import QRScanner from '../components/QRScanner';
 
 interface TraceabilityData {
     history: Movement[];
@@ -20,6 +22,7 @@ const TraceabilityPage: React.FC = () => {
     const [productId, setProductId] = useState('');
     const [traceabilityData, setTraceabilityData] = useState<TraceabilityData | null>(null);
     const [productNotFound, setProductNotFound] = useState(false);
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
     const { movements, findProductById, locations, stock } = useInventory();
 
     const handleSearch = () => {
@@ -55,6 +58,35 @@ const TraceabilityPage: React.FC = () => {
     // Obtiene los detalles del producto si se ha encontrado un historial.
     const product = traceabilityData ? findProductById(productId) : null;
 
+    const handleQRScan = (decodedText: string) => {
+        const upperCode = decodedText.toUpperCase();
+        setProductId(upperCode);
+        // Realizar la búsqueda automáticamente después de escanear
+        const product = findProductById(upperCode);
+        if (product) {
+            const history = movements
+                .filter(m => m.productId === upperCode)
+                .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+            
+            const initialStockMovement = history.find(m => m.type === MovementType.INITIAL_LOAD);
+            const initialStock = initialStockMovement ? initialStockMovement.quantity : 0;
+
+            const currentStock = stock
+                .filter(s => s.productId === upperCode)
+                .reduce((sum, s) => sum + s.quantity, 0);
+
+            setTraceabilityData({
+                history: history.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
+                initialStock,
+                currentStock
+            });
+            setProductNotFound(false);
+        } else {
+            setTraceabilityData(null);
+            setProductNotFound(true);
+        }
+    };
+
     return (
         <div className="space-y-6">
             <h2 className="text-3xl font-bold text-primary">Trazabilidad de Producto</h2>
@@ -64,18 +96,35 @@ const TraceabilityPage: React.FC = () => {
                         <label htmlFor="product-search" className="block text-sm font-medium text-text-main">
                             Código de Venta del Producto (ej: BI0001BL)
                         </label>
-                        <input
-                            id="product-search"
-                            type="text"
-                            className="mt-1 w-full p-2 border border-accent rounded-md bg-white focus:ring-2 focus:ring-secondary focus:outline-none"
-                            value={productId}
-                            onChange={(e) => setProductId(e.target.value.toUpperCase())}
-                            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                        />
+                        <div className="mt-1 flex rounded-md shadow-sm">
+                            <input
+                                id="product-search"
+                                type="text"
+                                className="flex-grow p-2 border border-accent rounded-l-md bg-white focus:ring-2 focus:ring-secondary focus:outline-none"
+                                value={productId}
+                                onChange={(e) => setProductId(e.target.value.toUpperCase())}
+                                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                            />
+                            <button
+                                onClick={() => setIsScannerOpen(true)}
+                                className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-accent bg-accent bg-opacity-20 text-primary hover:bg-opacity-40 transition-colors"
+                                title="Escanear Código"
+                            >
+                                <Camera size={20} />
+                            </button>
+                        </div>
                     </div>
                     <Button onClick={handleSearch}>Buscar</Button>
                 </div>
             </Card>
+
+            {isScannerOpen && (
+                <QRScanner 
+                    onScan={handleQRScan} 
+                    onClose={() => setIsScannerOpen(false)} 
+                    title="Escanear Etiqueta de Producto"
+                />
+            )}
 
             {productNotFound && (
                 <Card>

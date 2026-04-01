@@ -89,17 +89,30 @@ async function initDb() {
 
     // Migración: Asegurar que la columna password existe si la tabla ya fue creada antes
     try {
-      await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS password TEXT');
+      const passwordCheck = await client.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name='users' AND column_name='password'
+      `);
+      if (passwordCheck.rowCount === 0) {
+        await client.query('ALTER TABLE users ADD COLUMN password TEXT');
+      }
     } catch (e) {
-      // Ignorar si ya existe o hay error (Postgres 9.6+ soporta IF NOT EXISTS en ADD COLUMN)
-      console.log("Nota: Columna 'password' ya existe o no pudo ser añadida automáticamente.");
+      console.log("Nota: No se pudo verificar/añadir la columna 'password'.", e);
     }
 
     // Migración: Añadir min_stock a productos si no existe
     try {
-      await client.query('ALTER TABLE products ADD COLUMN IF NOT EXISTS min_stock INTEGER DEFAULT 2');
+      const minStockCheck = await client.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name='products' AND column_name='min_stock'
+      `);
+      if (minStockCheck.rowCount === 0) {
+        await client.query('ALTER TABLE products ADD COLUMN min_stock INTEGER DEFAULT 2');
+      }
     } catch (e) {
-      console.log("Nota: Columna 'min_stock' ya existe o no pudo ser añadida.");
+      console.log("Nota: No se pudo verificar/añadir la columna 'min_stock'.", e);
     }
 
     // Datos iniciales si las tablas están vacías
@@ -126,7 +139,7 @@ async function initDb() {
   }
 }
 
-initDb();
+// initDb(); // Se llamará dentro de startServer
 
 app.use(cors());
 app.use(express.json());
@@ -411,6 +424,9 @@ app.post('/api/clear', async (req, res) => {
 // --- VITE MIDDLEWARE ---
 
 async function startServer() {
+  // Inicializar base de datos antes de arrancar el servidor
+  await initDb();
+
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
