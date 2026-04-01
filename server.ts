@@ -25,11 +25,8 @@ if (!dbUrl) {
   console.log(`📡 Intentando conectar a: ${maskedUrl}`);
 }
 
-const sslConfig = dbUrl?.includes('localhost') || 
-                  dbUrl?.includes('127.0.0.1') ||
-                  process.env.PGSSLMODE === 'disable'
-                  ? false 
-                  : { rejectUnauthorized: false };
+// Desactivamos SSL por defecto para que coincida con la configuración de Coolify (Enable SSL: false)
+const sslConfig = false;
 
 const pool = new Pool({
   connectionString: dbUrl,
