@@ -16,22 +16,26 @@ const app = express();
 const PORT = 3000;
 
 // Configuración de la base de datos PostgreSQL
-if (!process.env.DATABASE_URL) {
-  console.warn("⚠️ DATABASE_URL no está configurada. La aplicación podría no funcionar correctamente.");
+const dbUrl = process.env.DATABASE_URL;
+
+if (!dbUrl) {
+  console.error("❌ CRÍTICO: DATABASE_URL no está definida en las variables de entorno.");
 } else {
-  const maskedUrl = process.env.DATABASE_URL.replace(/:[^:@]+@/, ':****@');
+  const maskedUrl = dbUrl.replace(/:[^:@]+@/, ':****@');
   console.log(`📡 Intentando conectar a: ${maskedUrl}`);
 }
 
-const sslConfig = process.env.DATABASE_URL?.includes('localhost') || 
-                  process.env.DATABASE_URL?.includes('127.0.0.1') ||
+const sslConfig = dbUrl?.includes('localhost') || 
+                  dbUrl?.includes('127.0.0.1') ||
                   process.env.PGSSLMODE === 'disable'
                   ? false 
                   : { rejectUnauthorized: false };
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: sslConfig
+  connectionString: dbUrl,
+  ssl: sslConfig,
+  // Forzar parámetros para evitar fallbacks a localhost si la URL está presente
+  host: dbUrl ? undefined : '127.0.0.1', 
 });
 
 // Manejador de errores global para el pool
