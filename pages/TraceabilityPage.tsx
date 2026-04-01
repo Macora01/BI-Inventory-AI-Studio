@@ -6,6 +6,7 @@ import { Movement, MovementType } from '../types';
 import { MOVEMENT_TYPE_MAP } from '../constants';
 import { Camera } from 'lucide-react';
 import QRScanner from '../components/QRScanner';
+import ProductImage from '../components/ProductImage';
 
 interface TraceabilityData {
     history: Movement[];
@@ -134,14 +135,25 @@ const TraceabilityPage: React.FC = () => {
 
             {traceabilityData && product && (
                 <Card title={`Historial de: ${product.description} (${product.id_venta})`}>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 p-4 bg-background rounded-md border border-accent">
-                        <div>
-                            <p className="text-sm text-text-light">Stock Inicial</p>
-                            <p className="text-2xl font-bold text-primary">{traceabilityData.initialStock}</p>
+                    <div className="flex flex-col md:flex-row gap-6 mb-6">
+                        <div className="w-full md:w-1/4">
+                            <ProductImage 
+                                factoryId={product.id_fabrica} 
+                                alt={product.description} 
+                                className="w-full aspect-square shadow-sm" 
+                            />
                         </div>
-                        <div>
-                            <p className="text-sm text-text-light">Stock Actual</p>
-                            <p className="text-2xl font-bold text-secondary">{traceabilityData.currentStock}</p>
+                        <div className="flex-1">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 p-4 bg-background rounded-md border border-accent h-full items-center">
+                                <div>
+                                    <p className="text-sm text-text-light">Stock Inicial</p>
+                                    <p className="text-2xl font-bold text-primary">{traceabilityData.initialStock}</p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-text-light">Stock Actual</p>
+                                    <p className="text-2xl font-bold text-secondary">{traceabilityData.currentStock}</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div className="overflow-x-auto max-h-screen">

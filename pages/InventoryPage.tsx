@@ -9,6 +9,7 @@ import { Search, Plus, Edit, Trash2, ArrowUpCircle, ArrowDownCircle, Info, Uploa
 import FileUpload from '../components/FileUpload';
 import Papa from 'papaparse';
 import QRScanner from '../components/QRScanner';
+import ProductImage from '../components/ProductImage';
 
 /**
  * Componente InventoryPage.
@@ -345,6 +346,7 @@ const InventoryPage: React.FC = () => {
                     <table className="w-full text-sm text-left text-text-main">
                         <thead className="text-xs text-primary uppercase bg-accent">
                             <tr>
+                                <th scope="col" className="px-4 py-3">Imagen</th>
                                 <th scope="col" className="px-4 py-3">Código Venta / Fábrica</th>
                                 <th scope="col" className="px-4 py-3">Descripción</th>
                                 {locations.map(loc => (
@@ -390,6 +392,13 @@ const InventoryPage: React.FC = () => {
 
                                 return (
                                     <tr key={product.id_venta} className={`bg-background-light border-b border-background hover:bg-gray-50 transition-colors ${isLowStock ? 'bg-red-50' : ''}`}>
+                                        <td className="px-4 py-4">
+                                            <ProductImage 
+                                                factoryId={product.id_fabrica} 
+                                                alt={product.description} 
+                                                className="w-12 h-12" 
+                                            />
+                                        </td>
                                         <td className="px-4 py-4">
                                             <div className="font-bold">{product.id_venta}</div>
                                             <div className="text-xs text-text-light">{product.id_fabrica}</div>
@@ -460,9 +469,20 @@ const InventoryPage: React.FC = () => {
             <Modal 
                 isOpen={isProductModalOpen} 
                 onClose={() => setIsProductModalOpen(false)} 
-                title={isEditing ? 'Editar Producto' : 'Nuevo Producto'}
+                title={isEditing ? 'Detalles del Producto' : 'Nuevo Producto'}
             >
-                <form onSubmit={handleSaveProduct} className="space-y-4">
+                <div className="flex flex-col md:flex-row gap-6">
+                    <div className="w-full md:w-1/3 flex flex-col items-center">
+                        <ProductImage 
+                            factoryId={selectedProduct?.id_fabrica || ''} 
+                            alt={selectedProduct?.description || 'Producto'} 
+                            className="w-full aspect-square mb-4 shadow-md" 
+                        />
+                        <p className="text-[10px] text-text-light text-center italic">
+                            La imagen se carga automáticamente desde /public/products/ usando el Código Fábrica.
+                        </p>
+                    </div>
+                    <form onSubmit={handleSaveProduct} className="flex-1 space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-text-main">Código Venta (ID Único)</label>
                         <div className="mt-1 flex rounded-md shadow-sm">
@@ -573,7 +593,8 @@ const InventoryPage: React.FC = () => {
                         <Button type="submit">Guardar Producto</Button>
                     </div>
                 </form>
-            </Modal>
+            </div>
+        </Modal>
 
             {/* Modal de Ajuste de Stock */}
             <Modal 
