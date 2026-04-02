@@ -297,40 +297,67 @@ const InventoryPage: React.FC = () => {
         Papa.parse(content, {
             header: true,
             skipEmptyLines: true,
+            delimiter: ";",
             complete: async (results) => {
                 const data = results.data as ParsedSale[];
                 const errors: string[] = [];
+                let successCount = 0;
                 
                 for (const item of data) {
-                    if (!item.cod_venta || !item.qty) continue;
+                    // Mapeo de columnas según el nuevo formato: fecha(DD-MM-AAA); lugar; id_venta; precio
+                    const fechaStr = (item as any)['fecha'] || (item as any)['fecha(DD-MM-AAA)'];
+                    const lugarStr = (item as any)['lugar'];
+                    const idVenta = (item as any)['id_venta'];
+                    const precio = Number((item as any)['precio']) || 0;
+
+                    if (!idVenta || !lugarStr) continue;
                     
-                    // Buscar ubicación por nombre exacto
-                    const loc = locations.find(l => l.name.toLowerCase() === item.lugar?.toLowerCase());
+                    // Buscar ubicación por nombre exacto (ej: Alma_XXX)
+                    const loc = locations.find(l => l.name.toLowerCase() === lugarStr.toLowerCase());
                     
                     if (!loc) {
-                        errors.push(`Error: El lugar de venta "${item.lugar}" no existe en la configuración.`);
+                        errors.push(`Error: El lugar de venta "${lugarStr}" no existe en la configuración.`);
                         continue;
                     }
                     
-                    const qty = Number(item.qty) || 1;
+                    // Cada registro descuenta 1 unidad
+                    const qty = 1;
                     
-                    await updateStock(item.cod_venta, loc.id, -qty);
-                    await addMovement({
-                        productId: item.cod_venta,
-                        quantity: qty,
-                        type: MovementType.SALE,
-                        fromLocationId: loc.id,
-                        timestamp: item.timestamp ? new Date(item.timestamp) : new Date(),
-                        price: Number(item.precio) || 0,
-                        relatedFile: 'Venta CSV'
-                    });
+                    // Intentar parsear la fecha DD-MM-YYYY
+                    let timestamp = new Date();
+                    if (fechaStr) {
+                        const parts = fechaStr.split('-');
+                        if (parts.length === 3) {
+                            // Asumiendo DD-MM-YYYY
+                            const day = parseInt(parts[0], 10);
+                            const month = parseInt(parts[1], 10) - 1;
+                            const year = parseInt(parts[2], 10);
+                            timestamp = new Date(year, month, day);
+                        }
+                    }
+                    
+                    try {
+                        await updateStock(idVenta, loc.id, -qty);
+                        await addMovement({
+                            productId: idVenta,
+                            quantity: qty,
+                            type: MovementType.SALE,
+                            fromLocationId: loc.id,
+                            timestamp: timestamp,
+                            price: precio,
+                            relatedFile: 'Venta CSV Multisite'
+                        });
+                        successCount++;
+                    } catch (err) {
+                        errors.push(`Error al procesar venta de ${idVenta} en ${lugarStr}: ${err instanceof Error ? err.message : 'Error desconocido'}`);
+                    }
                 }
                 
                 setIsImportModalOpen(false);
                 if (errors.length > 0) {
-                    alert(`Ventas procesadas con algunos errores:\n\n${errors.join('\n')}`);
+                    addToast(`Se procesaron ${successCount} ventas. Errores:\n${errors.slice(0, 3).join('\n')}${errors.length > 3 ? '\n...' : ''}`, 'warning');
                 } else {
-                    alert('Ventas procesadas con éxito.');
+                    addToast(`¡Éxito! Se procesaron ${successCount} ventas correctamente.`, 'success');
                 }
             }
         });
@@ -744,9 +771,9 @@ const InventoryPage: React.FC = () => {
 
                         <div className="p-4 border border-accent rounded-lg">
                             <h4 className="font-bold text-primary flex items-center mb-2">
-                                <ShoppingCart size={18} className="mr-2" /> Ventas
+                                <ShoppingCart size={18} className="mr-2" /> Ventas Diarias (Multisitio)
                             </h4>
-                            <p className="text-xs text-text-light mb-3">Registro de ventas para descontar del stock.</p>
+                            <p className="text-xs text-text-light mb-3">Registro de ventas por almacén. Formato: fecha;lugar;id_venta;precio</p>
                             <FileUpload 
                                 title="Subir Ventas"
                                 onFileProcess={processSales} 
@@ -769,8 +796,8 @@ const InventoryPage: React.FC = () => {
                             <li><strong>Transferencias:</strong> sitio_inicial, sitio_final, id_venta, qty <br/>
                                 <span className="text-[9px] text-text-light italic">(Ej: Bod_Prin, Alma_VLT, PROD01, 1)</span>
                             </li>
-                            <li><strong>Ventas:</strong> timestamp, lugar, cod_fabrica, cod_venta, description, precio, qty <br/>
-                                <span className="text-[9px] text-text-light italic">(Ej: 2024-03-31, Alma_VLT, FAB01, VENTA01, Desc, 100, 1)</span>
+                            <li><strong>Ventas:</strong> fecha(DD-MM-AAA); lugar; id_venta; precio <br/>
+                                <span className="text-[9px] text-text-light italic">(Ej: 31-03-2024; Alma_VLT; VENTA01; 100)</span>
                             </li>
                         </ul>
                     </div>

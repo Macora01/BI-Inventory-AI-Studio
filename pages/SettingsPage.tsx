@@ -150,7 +150,7 @@ const SettingsPage: React.FC = () => {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h2 className="text-3xl font-bold text-primary">Configuración</h2>
-                <span className="text-xs bg-accent text-primary px-2 py-1 rounded">v1.0.6</span>
+                <span className="text-xs bg-accent text-primary px-2 py-1 rounded">v1.0.7</span>
             </div>
 
             {/* Identidad de Marca */}

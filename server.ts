@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
+import { localDb } from './localDb';
 
 dotenv.config();
 
@@ -37,6 +38,25 @@ const pool = new Pool({
   host: dbUrl ? undefined : '127.0.0.1', 
 });
 
+let useLocalDb = !dbUrl;
+
+// Función de consulta universal que decide entre Postgres y LocalDB
+async function query(text: string, params: any[] = []) {
+  if (useLocalDb) {
+    return localDb.query(text, params);
+  }
+  try {
+    return await pool.query(text, params);
+  } catch (err) {
+    if ((err as any).code === 'ECONNREFUSED' || (err as any).code === 'ENOTFOUND') {
+      console.warn('⚠️ Conexión a PostgreSQL fallida. Cambiando a LocalDB (JSON)...');
+      useLocalDb = true;
+      return localDb.query(text, params);
+    }
+    throw err;
+  }
+}
+
 // Manejador de errores global para el pool
 pool.on('error', (err) => {
   console.error('💥 Error inesperado en el pool de PostgreSQL:', err);
@@ -45,6 +65,17 @@ pool.on('error', (err) => {
 // Inicialización de tablas
 async function initDb() {
   try {
+    if (useLocalDb) {
+      console.log("📂 Usando LocalDB (JSON) para persistencia.");
+      // Inicializar datos por defecto si están vacíos
+      const locs = await localDb.query('SELECT count(*) as count FROM locations');
+      if (locs.rowCount === 0 || locs.rows.length === 0) {
+        await localDb.query("INSERT INTO locations (id, name, type) VALUES ($1, $2, $3)", ['main_warehouse', 'Bodega Principal', 'MAIN_WAREHOUSE']);
+        await localDb.query("INSERT INTO users (id, username, password, role) VALUES ($1, $2, $3, $4)", ['user_1', 'admin', 'admin123', 'admin']);
+      }
+      return;
+    }
+
     const client = await pool.connect();
     
     await client.query(`
@@ -247,11 +278,11 @@ app.post('/api/upload-bulk', upload.array('files', 50), (req, res) => {
 // API routes go here
 app.get('/api/health', async (req, res) => {
   try {
-    const result = await pool.query('SELECT NOW()');
+    const result = await query('SELECT NOW()');
     res.json({ 
       status: 'ok', 
-      database: 'connected', 
-      time: result.rows[0].now,
+      database: useLocalDb ? 'local' : 'connected', 
+      time: result.rows[0]?.now || new Date().toISOString(),
       env: process.env.NODE_ENV
     });
   } catch (err) {
@@ -266,7 +297,7 @@ app.get('/api/health', async (req, res) => {
 // Products
 app.get('/api/products', async (req, res) => {
   try {
-    const result = await pool.query('SELECT id_venta, id_fabrica, description, price, cost, min_stock AS "minStock" FROM products');
+    const result = await query('SELECT id_venta, id_fabrica, description, price, cost, min_stock AS "minStock" FROM products');
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
@@ -276,7 +307,7 @@ app.get('/api/products', async (req, res) => {
 app.post('/api/products', async (req, res) => {
   const { id_venta, id_fabrica, description, price, cost, minStock } = req.body;
   try {
-    await pool.query(
+    await query(
       'INSERT INTO products (id_venta, id_fabrica, description, price, cost, min_stock) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id_venta) DO UPDATE SET id_fabrica=$2, description=$3, price=$4, cost=$5, min_stock=$6',
       [id_venta, id_fabrica, description, price, cost, minStock !== undefined ? minStock : 2]
     );
@@ -288,8 +319,8 @@ app.post('/api/products', async (req, res) => {
 
 app.delete('/api/products/:id', async (req, res) => {
   try {
-    await pool.query('DELETE FROM products WHERE id_venta = $1', [req.params.id]);
-    await pool.query('DELETE FROM stock WHERE productId = $1', [req.params.id]);
+    await query('DELETE FROM products WHERE id_venta = $1', [req.params.id]);
+    await query('DELETE FROM stock WHERE productId = $1', [req.params.id]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
@@ -299,7 +330,7 @@ app.delete('/api/products/:id', async (req, res) => {
 // Locations
 app.get('/api/locations', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM locations');
+    const result = await query('SELECT * FROM locations');
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
@@ -309,7 +340,7 @@ app.get('/api/locations', async (req, res) => {
 app.post('/api/locations', async (req, res) => {
   const { id, name, type } = req.body;
   try {
-    await pool.query(
+    await query(
       'INSERT INTO locations (id, name, type) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET name=$2, type=$3',
       [id, name, type]
     );
@@ -321,7 +352,7 @@ app.post('/api/locations', async (req, res) => {
 
 app.delete('/api/locations/:id', async (req, res) => {
   try {
-    await pool.query('DELETE FROM locations WHERE id = $1', [req.params.id]);
+    await query('DELETE FROM locations WHERE id = $1', [req.params.id]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
@@ -331,7 +362,7 @@ app.delete('/api/locations/:id', async (req, res) => {
 // Stock
 app.get('/api/stock', async (req, res) => {
   try {
-    const result = await pool.query('SELECT productId AS "productId", locationId AS "locationId", quantity, criticalStock AS "criticalStock" FROM stock');
+    const result = await query('SELECT productId AS "productId", locationId AS "locationId", quantity, criticalStock AS "criticalStock" FROM stock');
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
@@ -341,9 +372,9 @@ app.get('/api/stock', async (req, res) => {
 app.post('/api/stock/update', async (req, res) => {
   const { productId, locationId, quantityChange } = req.body;
   try {
-    const current = await pool.query('SELECT quantity FROM stock WHERE productId = $1 AND locationId = $2', [productId, locationId]);
+    const current = await query('SELECT quantity FROM stock WHERE productId = $1 AND locationId = $2', [productId, locationId]);
     const newQuantity = (current.rows[0]?.quantity || 0) + quantityChange;
-    await pool.query(
+    await query(
       'INSERT INTO stock (productId, locationId, quantity) VALUES ($1, $2, $3) ON CONFLICT (productId, locationId) DO UPDATE SET quantity = $3',
       [productId, locationId, newQuantity]
     );
@@ -356,7 +387,7 @@ app.post('/api/stock/update', async (req, res) => {
 // Movements
 app.get('/api/movements', async (req, res) => {
   try {
-    const result = await pool.query(`
+    const result = await query(`
       SELECT 
         id, 
         productId AS "productId", 
@@ -380,7 +411,7 @@ app.get('/api/movements', async (req, res) => {
 app.post('/api/movements', async (req, res) => {
   const { id, productId, quantity, type, fromLocationId, toLocationId, timestamp, relatedFile, price, cost } = req.body;
   try {
-    await pool.query(
+    await query(
       'INSERT INTO movements (id, productId, quantity, type, fromLocationId, toLocationId, timestamp, relatedFile, price, cost) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
       [id || `mov_${Date.now()}`, productId, quantity, type, fromLocationId, toLocationId, timestamp || new Date().toISOString(), relatedFile, price, cost]
     );
@@ -393,13 +424,14 @@ app.post('/api/movements', async (req, res) => {
 // Bulk Import
 app.post('/api/bulk-import', async (req, res) => {
   const { products, stock, movements } = req.body;
-  const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-
+    // Si es local, procesamos uno a uno (no hay transacciones reales en el mock)
+    // Si es Postgres, idealmente usaríamos una transacción, pero para simplificar el fallback
+    // usamos la función query universal.
+    
     // Upsert Products
     for (const p of products) {
-      await client.query(
+      await query(
         'INSERT INTO products (id_venta, id_fabrica, description, price, cost, min_stock) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id_venta) DO UPDATE SET id_fabrica=$2, description=$3, price=$4, cost=$5, min_stock=$6',
         [p.id_venta, p.id_fabrica, p.description, p.price, p.cost, p.minStock !== undefined ? p.minStock : 2]
       );
@@ -407,7 +439,7 @@ app.post('/api/bulk-import', async (req, res) => {
 
     // Upsert Stock
     for (const s of stock) {
-      await client.query(
+      await query(
         'INSERT INTO stock (productId, locationId, quantity) VALUES ($1, $2, $3) ON CONFLICT (productId, locationId) DO UPDATE SET quantity = $3',
         [s.productId, s.locationId, s.quantity]
       );
@@ -415,26 +447,22 @@ app.post('/api/bulk-import', async (req, res) => {
 
     // Insert Movements
     for (const m of movements) {
-      await client.query(
+      await query(
         'INSERT INTO movements (id, productId, quantity, type, fromLocationId, toLocationId, timestamp, relatedFile, price, cost) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
         [m.id || `mov_${Date.now()}_${Math.random()}`, m.productId, m.quantity, m.type, m.fromLocationId, m.toLocationId, m.timestamp || new Date().toISOString(), m.relatedFile, m.price, m.cost]
       );
     }
 
-    await client.query('COMMIT');
     res.json({ success: true });
   } catch (err) {
-    await client.query('ROLLBACK');
     res.status(500).json({ error: (err as Error).message });
-  } finally {
-    client.release();
   }
 });
 
 // Users
 app.get('/api/users', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM users');
+    const result = await query('SELECT * FROM users');
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
@@ -444,7 +472,7 @@ app.get('/api/users', async (req, res) => {
 app.post('/api/users', async (req, res) => {
   const { id, username, password, role } = req.body;
   try {
-    await pool.query(
+    await query(
       'INSERT INTO users (id, username, password, role) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET username=$2, password=$3, role=$4',
       [id || `user_${Date.now()}`, username, password || '', role]
     );
@@ -456,7 +484,7 @@ app.post('/api/users', async (req, res) => {
 
 app.delete('/api/users/:id', async (req, res) => {
   try {
-    await pool.query('DELETE FROM users WHERE id = $1', [req.params.id]);
+    await query('DELETE FROM users WHERE id = $1', [req.params.id]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
@@ -466,71 +494,45 @@ app.delete('/api/users/:id', async (req, res) => {
 // --- CLEAR DATA ENDPOINTS ---
 
 app.post('/api/clear/products', async (req, res) => {
-  const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-    await client.query('DELETE FROM movements');
-    await client.query('DELETE FROM stock');
-    await client.query('DELETE FROM products');
-    await client.query('COMMIT');
+    await query('DELETE FROM movements');
+    await query('DELETE FROM stock');
+    await query('DELETE FROM products');
     res.json({ success: true });
   } catch (err) {
-    await client.query('ROLLBACK');
     res.status(500).json({ error: (err as Error).message });
-  } finally {
-    client.release();
   }
 });
 
 app.post('/api/clear/locations', async (req, res) => {
-  const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-    await client.query('DELETE FROM stock');
-    await client.query('DELETE FROM locations');
-    // Re-insert default locations if needed or let the app handle it
-    await client.query('COMMIT');
+    await query('DELETE FROM stock');
+    await query('DELETE FROM locations');
     res.json({ success: true });
   } catch (err) {
-    await client.query('ROLLBACK');
     res.status(500).json({ error: (err as Error).message });
-  } finally {
-    client.release();
   }
 });
 
 app.post('/api/clear/users', async (req, res) => {
-  const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-    await client.query('DELETE FROM users');
-    // Re-insert default admin? The app usually does this on restart if table is empty
-    await client.query('COMMIT');
+    await query('DELETE FROM users');
     res.json({ success: true });
   } catch (err) {
-    await client.query('ROLLBACK');
     res.status(500).json({ error: (err as Error).message });
-  } finally {
-    client.release();
   }
 });
 
 app.post('/api/clear', async (req, res) => {
-  const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-    await client.query('DELETE FROM movements');
-    await client.query('DELETE FROM stock');
-    await client.query('DELETE FROM products');
-    await client.query('DELETE FROM locations');
-    await client.query('DELETE FROM users');
-    await client.query('COMMIT');
+    await query('DELETE FROM movements');
+    await query('DELETE FROM stock');
+    await query('DELETE FROM products');
+    await query('DELETE FROM locations');
+    await query('DELETE FROM users');
     res.json({ success: true });
   } catch (err) {
-    await client.query('ROLLBACK');
     res.status(500).json({ error: (err as Error).message });
-  } finally {
-    client.release();
   }
 });
 

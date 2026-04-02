@@ -84,13 +84,7 @@ export interface ParsedTransfer {
 }
 
 export interface ParsedSale {
-  timestamp: string;
-  lugar: string;
-  cod_fabrica: string;
-  cod_venta: string;
-  description: string;
-  precio: number;
-  qty: number;
+  [key: string]: any;
 }
 
 export interface GeminiInsight {
