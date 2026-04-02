@@ -66,7 +66,7 @@ const ProductImage: React.FC<ProductImageProps> = ({ factoryId, alt, className =
     setLoading(true);
     setError(false);
     tryNext();
-  }, [factoryId, refreshKey]);
+  }, [factoryId, refreshKey, image]);
 
   if (loading) {
     return (

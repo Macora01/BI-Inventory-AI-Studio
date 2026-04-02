@@ -864,7 +864,10 @@ const InventoryPage: React.FC = () => {
                                 </h4>
                                 <p className="text-xs text-text-light mb-3">Sube múltiples fotos de productos de una vez. Los archivos deben llamarse como el ID de Fábrica.</p>
                             </div>
-                            <BulkImageUpload onSuccess={() => setImageRefreshKey(Date.now())} />
+                            <BulkImageUpload onSuccess={() => {
+                                setImageRefreshKey(Date.now());
+                                fetchData();
+                            }} />
                         </div>
                     </div>
 

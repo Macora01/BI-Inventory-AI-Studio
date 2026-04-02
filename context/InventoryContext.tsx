@@ -70,9 +70,7 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
             const res = await fetch('/api/settings/logo');
             if (res.ok) {
                 const data = await res.json();
-                if (data.logo) {
-                    setLogo(data.logo);
-                }
+                setLogo(data.logo);
             }
         } catch (err) {
             console.error('Error fetching logo:', err);
