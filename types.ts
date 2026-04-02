@@ -15,6 +15,7 @@ export interface Product {
   description: string;
   minStock?: number;
   initialStock?: number;
+  image?: string;
 }
 
 export interface Stock {

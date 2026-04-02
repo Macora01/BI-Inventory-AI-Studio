@@ -13,7 +13,8 @@ const SettingsPage: React.FC = () => {
         users, addUser, updateUser, deleteUser,
         clearAllData, clearProducts, clearLocations, clearUsers,
         backupData, restoreData,
-        dbStatus, checkHealth, error, loading
+        dbStatus, checkHealth, error, loading,
+        logo, fetchLogo
     } = useInventory();
     const { addToast } = useToast();
 
@@ -140,9 +141,9 @@ const SettingsPage: React.FC = () => {
                 body: formData,
             });
             if (response.ok) {
-                addToast('Logo actualizado correctamente. Recarga para ver los cambios.', 'success');
+                addToast('Logo actualizado correctamente.', 'success');
                 setLogoFile(null);
-                setTimeout(() => window.location.reload(), 2000);
+                await fetchLogo();
             } else {
                 const data = await response.json();
                 addToast(data.error || 'Error al subir el logo.', 'error');
@@ -201,10 +202,14 @@ const SettingsPage: React.FC = () => {
                 <div className="p-4 flex flex-col md:flex-row items-center gap-6">
                     <div className="w-32 h-32 bg-background rounded-lg border-2 border-dashed border-accent flex items-center justify-center overflow-hidden">
                         <img 
-                            src={`/logo.png?t=${Date.now()}`} 
+                            src={logo || "/logo.png"} 
                             alt="Logo actual" 
                             className="max-w-full max-h-full object-contain" 
-                            onError={(e) => (e.currentTarget.src = 'https://via.placeholder.com/150?text=Sin+Logo')} 
+                            onError={(e) => {
+                                if (!logo) {
+                                    e.currentTarget.src = 'https://via.placeholder.com/150?text=Sin+Logo';
+                                }
+                            }} 
                         />
                     </div>
                     <div className="flex-1 space-y-4">

@@ -7,18 +7,26 @@ interface ProductImageProps {
   alt: string;
   className?: string;
   refreshKey?: number | string;
+  image?: string;
 }
 
 /**
  * Componente que intenta cargar una imagen de producto basada en el factoryId.
  * Prueba con extensiones .jpg y .jpeg antes de mostrar un fallback.
  */
-const ProductImage: React.FC<ProductImageProps> = ({ factoryId, alt, className = "", refreshKey }) => {
-  const [src, setSrc] = useState<string | null>(null);
+const ProductImage: React.FC<ProductImageProps> = ({ factoryId, alt, className = "", refreshKey, image }) => {
+  const [src, setSrc] = useState<string | null>(image || null);
   const [error, setError] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!image);
 
   useEffect(() => {
+    if (image) {
+      setSrc(image);
+      setLoading(false);
+      setError(false);
+      return;
+    }
+
     if (!factoryId) {
       setError(true);
       setLoading(false);

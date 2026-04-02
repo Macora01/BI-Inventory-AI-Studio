@@ -41,8 +41,10 @@ interface InventoryContextType {
     loading: boolean;
     error: string | null;
     dbStatus: { status: string; database: string; time?: string; error?: string } | null;
+    logo: string | null;
     fetchData: () => Promise<void>;
     checkHealth: () => Promise<void>;
+    fetchLogo: () => Promise<void>;
 }
 
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
@@ -60,8 +62,22 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [dbStatus, setDbStatus] = useState<{ status: string; database: string; time?: string; error?: string } | null>(null);
+    const [logo, setLogo] = useState<string | null>(null);
 
     // ---- CARGA INICIAL DESDE LA API ----
+    const fetchLogo = useCallback(async () => {
+        try {
+            const res = await fetch('/api/settings/logo');
+            if (res.ok) {
+                const data = await res.json();
+                if (data.logo) {
+                    setLogo(data.logo);
+                }
+            }
+        } catch (err) {
+            console.error('Error fetching logo:', err);
+        }
+    }, []);
     const checkHealth = useCallback(async () => {
         try {
             const res = await fetch('/api/health');
@@ -123,7 +139,8 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     useEffect(() => {
         fetchData();
-    }, [fetchData]);
+        fetchLogo();
+    }, [fetchData, fetchLogo]);
 
     // ---- FUNCIONES DE MOVIMIENTOS Y STOCK ----
     const addMovement = useCallback(async (movementData: Omit<Movement, 'id' | 'timestamp'>) => {
@@ -451,7 +468,7 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
             addProduct, updateProduct, deleteProduct,
             addLocation, updateLocation, deleteLocation,
             addUser, updateUser, deleteUser,
-            loading, error, dbStatus, fetchData, checkHealth
+            loading, error, dbStatus, logo, fetchData, checkHealth, fetchLogo
         }}>
             {children}
         </InventoryContext.Provider>

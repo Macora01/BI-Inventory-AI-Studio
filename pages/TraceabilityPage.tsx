@@ -141,6 +141,7 @@ const TraceabilityPage: React.FC = () => {
                                 factoryId={product.id_fabrica} 
                                 alt={product.description} 
                                 className="w-full aspect-square shadow-sm" 
+                                image={product.image}
                             />
                         </div>
                         <div className="flex-1">

@@ -4,6 +4,7 @@ import { User } from '../types';
 import { NAV_ITEMS } from '../constants';
 import { LogOut, UserCircle2 } from 'lucide-react';
 import { useHashNavigation } from '../hooks/useHashNavigation';
+import { useInventory } from '../context/InventoryContext';
 
 interface SidebarProps {
   user: User;
@@ -16,6 +17,7 @@ interface SidebarProps {
  * @param {SidebarProps} props - Propiedades del componente.
  */
 const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
+    const { logo } = useInventory();
     // Obtiene la ruta actual para resaltar el enlace activo.
     const currentPath = useHashNavigation();
 
@@ -37,13 +39,15 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
       <div className="p-6 text-center border-b border-secondary">
         <div className="flex justify-center mb-4">
           <img 
-            src="/logo.png" 
+            src={logo || "/logo.png"} 
             alt="Boa Ideia Logo" 
             className="h-16 w-auto object-contain"
             referrerPolicy="no-referrer"
             onError={(e) => {
               // Fallback if logo is not found
-              (e.target as HTMLImageElement).style.display = 'none';
+              if (!logo) {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }
             }}
           />
         </div>

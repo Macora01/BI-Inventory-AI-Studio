@@ -478,6 +478,7 @@ const InventoryPage: React.FC = () => {
                                                 alt={product.description} 
                                                 className="w-12 h-12" 
                                                 refreshKey={imageRefreshKey}
+                                                image={product.image}
                                             />
                                         </td>
                                         <td className="px-4 py-4">

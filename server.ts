@@ -92,7 +92,8 @@ async function initDb() {
         description TEXT,
         price REAL,
         cost REAL,
-        min_stock INTEGER DEFAULT 2
+        min_stock INTEGER DEFAULT 2,
+        image TEXT
       );
 
       CREATE TABLE IF NOT EXISTS locations (
@@ -120,6 +121,11 @@ async function initDb() {
         relatedFile TEXT,
         price REAL,
         cost REAL
+      );
+
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT
       );
     `);
 
@@ -158,6 +164,20 @@ async function initDb() {
       }
     } catch (e) {
       console.log("Nota: No se pudo verificar/añadir la columna 'min_stock'.", e);
+    }
+
+    // Migración: Añadir image a productos si no existe
+    try {
+      const imageCheck = await client.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name='products' AND column_name='image'
+      `);
+      if (imageCheck.rowCount === 0) {
+        await client.query('ALTER TABLE products ADD COLUMN image TEXT');
+      }
+    } catch (e) {
+      console.log("Nota: No se pudo verificar/añadir la columna 'image'.", e);
     }
 
     // Datos iniciales si las tablas están vacías
@@ -216,35 +236,7 @@ app.use('/products', express.static('data/products'));
 app.use('/logo.png', express.static('data/logo.png'));
 
 // Configuración de Multer para subida de archivos
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const type = req.query.type;
-    let uploadPath = 'data';
-    if (type === 'product' || type === 'product-bulk') {
-      uploadPath = 'data/products';
-    }
-    
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    const type = req.query.type;
-    if (type === 'logo') {
-      cb(null, 'logo.png'); // Siempre logo.png para el logo
-    } else if (type === 'product') {
-      const factoryId = req.query.factoryId;
-      const ext = path.extname(file.originalname).toLowerCase();
-      cb(null, `${factoryId}${ext}`);
-    } else if (type === 'product-bulk') {
-      // En subida masiva, usamos el nombre original (ej: 2343.jpg)
-      cb(null, file.originalname);
-    } else {
-      cb(null, file.originalname);
-    }
-  }
-});
+const storage = multer.memoryStorage();
 
 const upload = multer({ 
   storage,
@@ -261,34 +253,67 @@ const upload = multer({
 });
 
 // Endpoint para subir logo o imagen de producto
-app.post('/api/upload', upload.single('file'), (req, res) => {
+app.post('/api/upload', upload.single('file'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No se subió ningún archivo' });
   }
-  res.json({ 
-    success: true, 
-    filename: req.file.filename,
-    path: req.query.type === 'product' ? `/products/${req.file.filename}` : `/${req.file.filename}`
-  });
+
+  const type = req.query.type;
+  const base64Image = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+
+  try {
+    if (type === 'logo') {
+      await query('INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2', ['logo', base64Image]);
+      res.json({ success: true, message: 'Logo actualizado en la base de datos' });
+    } else if (type === 'product') {
+      const factoryId = req.query.factoryId;
+      await query('UPDATE products SET image = $1 WHERE id_fabrica = $2', [base64Image, factoryId]);
+      res.json({ success: true, message: 'Imagen de producto actualizada en la base de datos' });
+    } else {
+      res.status(400).json({ error: 'Tipo de subida no válido' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
 });
 
 // Endpoint para subida masiva de imágenes de productos
-app.post('/api/upload-bulk', upload.array('files', 50), (req, res) => {
+app.post('/api/upload-bulk', upload.array('files', 50), async (req, res) => {
   if (!req.files || (req.files as Express.Multer.File[]).length === 0) {
     return res.status(400).json({ error: 'No se subieron archivos' });
   }
   
   const files = req.files as Express.Multer.File[];
-  const results = files.map(file => ({
-    filename: file.filename,
-    path: `/products/${file.filename}`
-  }));
+  let successCount = 0;
 
-  res.json({ 
-    success: true, 
-    count: results.length,
-    files: results
-  });
+  try {
+    for (const file of files) {
+      const factoryId = path.parse(file.originalname).name; // ej: 2343 de 2343.jpg
+      const base64Image = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+      
+      const result = await query('UPDATE products SET image = $1 WHERE id_fabrica = $2', [base64Image, factoryId]);
+      if (result.rowCount > 0) {
+        successCount++;
+      }
+    }
+    res.json({ success: true, count: successCount });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// Endpoint para obtener el logo
+app.get('/api/settings/logo', async (req, res) => {
+  try {
+    const result = await query('SELECT value FROM settings WHERE key = $1', ['logo']);
+    if (result.rows.length > 0) {
+      res.json({ logo: result.rows[0].value });
+    } else {
+      res.json({ logo: null });
+    }
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
 });
 
 // API routes go here
@@ -313,7 +338,7 @@ app.get('/api/health', async (req, res) => {
 // Products
 app.get('/api/products', async (req, res) => {
   try {
-    const result = await query('SELECT id_venta, id_fabrica, description, price, cost, min_stock AS "minStock" FROM products');
+    const result = await query('SELECT id_venta, id_fabrica, description, price, cost, min_stock AS "minStock", image FROM products');
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
@@ -321,11 +346,11 @@ app.get('/api/products', async (req, res) => {
 });
 
 app.post('/api/products', async (req, res) => {
-  const { id_venta, id_fabrica, description, price, cost, minStock } = req.body;
+  const { id_venta, id_fabrica, description, price, cost, minStock, image } = req.body;
   try {
     await query(
-      'INSERT INTO products (id_venta, id_fabrica, description, price, cost, min_stock) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id_venta) DO UPDATE SET id_fabrica=$2, description=$3, price=$4, cost=$5, min_stock=$6',
-      [id_venta, id_fabrica, description, price, cost, minStock !== undefined ? minStock : 2]
+      'INSERT INTO products (id_venta, id_fabrica, description, price, cost, min_stock, image) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id_venta) DO UPDATE SET id_fabrica=$2, description=$3, price=$4, cost=$5, min_stock=$6, image=COALESCE($7, products.image)',
+      [id_venta, id_fabrica, description, price, cost, minStock !== undefined ? minStock : 2, image || null]
     );
     res.json({ success: true });
   } catch (err) {
@@ -516,6 +541,7 @@ app.get('/api/backup', async (req, res) => {
     const movements = await query('SELECT * FROM movements');
     const locations = await query('SELECT * FROM locations');
     const users = await query('SELECT * FROM users');
+    const settings = await query('SELECT * FROM settings');
 
     const backupData = {
       products: products.rows,
@@ -523,7 +549,8 @@ app.get('/api/backup', async (req, res) => {
       movements: movements.rows,
       locations: locations.rows,
       users: users.rows,
-      version: '1.0',
+      settings: settings.rows,
+      version: '1.1',
       timestamp: new Date().toISOString()
     };
 
@@ -534,7 +561,7 @@ app.get('/api/backup', async (req, res) => {
 });
 
 app.post('/api/restore', async (req, res) => {
-  const { products, stock, movements, locations, users } = req.body;
+  const { products, stock, movements, locations, users, settings } = req.body;
   try {
     // Limpiar todo primero
     await query('DELETE FROM movements');
@@ -542,42 +569,63 @@ app.post('/api/restore', async (req, res) => {
     await query('DELETE FROM products');
     await query('DELETE FROM locations');
     await query('DELETE FROM users');
+    await query('DELETE FROM settings');
 
     // Restaurar Ubicaciones
-    for (const l of locations) {
-      await query('INSERT INTO locations (id, name, type) VALUES ($1, $2, $3)', [l.id, l.name, l.type]);
+    if (locations) {
+      for (const l of locations) {
+        await query('INSERT INTO locations (id, name, type) VALUES ($1, $2, $3)', [l.id, l.name, l.type]);
+      }
     }
 
     // Restaurar Productos
-    for (const p of products) {
-      await query(
-        'INSERT INTO products (id_venta, id_fabrica, description, price, cost, min_stock) VALUES ($1, $2, $3, $4, $5, $6)',
-        [p.id_venta, p.id_fabrica, p.description, p.price, p.cost, p.min_stock]
-      );
+    if (products) {
+      for (const p of products) {
+        await query(
+          'INSERT INTO products (id_venta, id_fabrica, description, price, cost, min_stock, image) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+          [p.id_venta, p.id_fabrica, p.description, p.price, p.cost, p.min_stock, p.image]
+        );
+      }
     }
 
     // Restaurar Stock
-    for (const s of stock) {
-      await query(
-        'INSERT INTO stock (productId, locationId, quantity) VALUES ($1, $2, $3)',
-        [s.productId, s.locationId, s.quantity]
-      );
+    if (stock) {
+      for (const s of stock) {
+        await query(
+          'INSERT INTO stock (productId, locationId, quantity, criticalStock) VALUES ($1, $2, $3, $4)',
+          [s.productId || s.productid, s.locationId || s.locationid, s.quantity, s.criticalStock || s.criticalstock]
+        );
+      }
     }
 
     // Restaurar Movimientos
-    for (const m of movements) {
-      await query(
-        'INSERT INTO movements (id, productId, quantity, type, fromLocationId, toLocationId, timestamp, relatedFile, price, cost) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
-        [m.id, m.productId, m.quantity, m.type, m.fromLocationId, m.toLocationId, m.timestamp, m.relatedFile, m.price, m.cost]
-      );
+    if (movements) {
+      for (const m of movements) {
+        await query(
+          'INSERT INTO movements (id, productId, quantity, type, fromLocationId, toLocationId, timestamp, relatedFile, price, cost) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+          [m.id, m.productId || m.productid, m.quantity, m.type, m.fromLocationId || m.fromlocationid, m.toLocationId || m.tolocationid, m.timestamp, m.relatedFile || m.relatedfile, m.price, m.cost]
+        );
+      }
     }
 
     // Restaurar Usuarios
-    for (const u of users) {
-      await query(
-        'INSERT INTO users (id, username, password, role) VALUES ($1, $2, $3, $4)',
-        [u.id, u.username, u.password, u.role]
-      );
+    if (users) {
+      for (const u of users) {
+        await query(
+          'INSERT INTO users (id, username, password, role) VALUES ($1, $2, $3, $4)',
+          [u.id, u.username, u.password, u.role]
+        );
+      }
+    }
+
+    // Restaurar Settings
+    if (settings) {
+      for (const s of settings) {
+        await query(
+          'INSERT INTO settings (key, value) VALUES ($1, $2)',
+          [s.key, s.value]
+        );
+      }
     }
 
     res.json({ success: true });
