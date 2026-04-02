@@ -212,14 +212,16 @@ async function initDb() {
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+app.use('/products', express.static('data/products'));
+app.use('/logo.png', express.static('data/logo.png'));
 
 // Configuración de Multer para subida de archivos
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const type = req.query.type;
-    let uploadPath = 'public';
+    let uploadPath = 'data';
     if (type === 'product' || type === 'product-bulk') {
-      uploadPath = 'public/products';
+      uploadPath = 'data/products';
     }
     
     if (!fs.existsSync(uploadPath)) {
@@ -556,6 +558,12 @@ async function startServer() {
   // Inicializar base de datos antes de arrancar el servidor
   await initDb();
 
+  // Asegurar que el directorio de productos existe
+  const productsPath = path.join(process.cwd(), 'data', 'products');
+  if (!fs.existsSync(productsPath)) {
+    fs.mkdirSync(productsPath, { recursive: true });
+  }
+
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -566,6 +574,10 @@ async function startServer() {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
   }
+  
+  // Asegurar que las imágenes se sirvan incluso en producción si están en data/
+  app.use('/products', express.static('data/products'));
+  app.use('/logo.png', express.static('data/logo.png'));
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server ready at http://0.0.0.0:${PORT}`);

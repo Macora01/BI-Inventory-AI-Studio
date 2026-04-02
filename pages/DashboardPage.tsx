@@ -359,7 +359,15 @@ const DashboardPage: React.FC = () => {
                                                 </p>
                                                 <div className="flex justify-between items-center mt-0.5">
                                                     <span className="text-[10px] text-text-light">{new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                                    <span className="text-[10px] font-bold text-primary">{m.quantity} un.</span>
+                                                    <span className={`text-[10px] font-bold ${
+                                                        m.type === 'SALE' || m.type === 'TRANSFER_OUT' || (m.type === 'ADJUSTMENT' && m.fromLocationId && !m.toLocationId)
+                                                            ? 'text-danger' 
+                                                            : 'text-success'
+                                                    }`}>
+                                                        {m.type === 'SALE' || m.type === 'TRANSFER_OUT' || (m.type === 'ADJUSTMENT' && m.fromLocationId && !m.toLocationId)
+                                                            ? `-${m.quantity}` 
+                                                            : `+${m.quantity}`} un.
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>
