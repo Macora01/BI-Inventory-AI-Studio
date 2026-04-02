@@ -1,0 +1,17 @@
+[
+  {
+    "id": "main_warehouse",
+    "name": "Bodega Principal",
+    "type": "MAIN_WAREHOUSE"
+  },
+  {
+    "id": "alma_vlt",
+    "name": "Alma_VLT",
+    "type": "FIXED_STORE_PERMANENT"
+  },
+  {
+    "id": "alma_dgo",
+    "name": "Alma_Dgo",
+    "type": "FIXED_STORE_PERMANENT"
+  }
+]

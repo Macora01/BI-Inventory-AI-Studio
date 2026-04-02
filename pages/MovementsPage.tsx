@@ -133,47 +133,63 @@ const MovementsPage: React.FC = () => {
     // Procesa el archivo CSV de ventas.
     const processSales = useCallback(async (content: string, file: File) => {
         try {
-            // Lógica mejorada para extraer el nombre de la ubicación del archivo.
-            const fileNameWithoutExt = file.name.slice(0, file.name.lastIndexOf('.'));
-            const lastUnderscoreIndex = fileNameWithoutExt.lastIndexOf('_');
-            if (lastUnderscoreIndex === -1) {
-                throw new Error(`Formato de archivo de ventas inválido. Use 'lugar_AAMMDD.csv'.`);
-            }
-            const locationNameFromFile = fileNameWithoutExt.substring(0, lastUnderscoreIndex);
-            
-            // Búsqueda flexible de la ubicación.
-            const normalizedLocationFromFile = normalizeName(locationNameFromFile);
-            const fromLocation = locations.find(l => normalizeName(l.name).startsWith(normalizedLocationFromFile));
+            // Usamos PapaParse para mayor flexibilidad con los delimitadores y formatos
+            const Papa = await import('papaparse');
+            Papa.parse(content, {
+                header: true,
+                skipEmptyLines: true,
+                delimiter: ";",
+                complete: async (results) => {
+                    const data = results.data;
+                    const errors: string[] = [];
+                    let successCount = 0;
 
-            if (!fromLocation) {
-                throw new Error(`Ubicación de venta '${locationNameFromFile}' no encontrada. Verifique que exista en Configuración.`);
-            }
+                    for (const item of data as any[]) {
+                        const fechaStr = item['fecha'] || item['fecha(DD-MM-AAA)'] || item['timestamp'];
+                        const lugarStr = item['lugar'];
+                        let idVenta = item['id_venta'] || item['cod_venta'];
+                        let precio = Number(item['precio']) || 0;
 
-            const parsedData = parseSalesCSV(content);
-            const errors: string[] = [];
+                        // Manejo de columna extra (id_transaccion)
+                        const extra = item['__parsed_extra'];
+                        if (extra && extra.length === 1) {
+                            idVenta = item['precio'];
+                            precio = Number(extra[0]) || 0;
+                        }
 
-            for (const item of parsedData) {
-                if (!item.cod_venta) continue;
-                
-                const qty = Number(item.qty) || 1;
-                
-                updateStock(item.cod_venta, fromLocation.id, -qty);
-                addMovement({
-                    productId: item.cod_venta,
-                    quantity: qty,
-                    type: MovementType.SALE,
-                    fromLocationId: fromLocation.id,
-                    relatedFile: file.name,
-                    price: item.precio,
-                    cost: products.find(p => p.id_venta === item.cod_venta)?.cost
-                });
-            }
-            
-            if (errors.length > 0) {
-                addToast(`Ventas procesadas con errores:\n${errors.join('\n')}`, 'error');
-            } else {
-                addToast(`Ventas desde '${file.name}' procesadas exitosamente.`, 'success');
-            }
+                        if (!idVenta || !lugarStr) continue;
+
+                        const fromLocation = locations.find(l => 
+                            l.name.toLowerCase() === lugarStr.toLowerCase()
+                        );
+
+                        if (!fromLocation) {
+                            errors.push(`Error: La ubicación '${lugarStr}' no existe.`);
+                            continue;
+                        }
+
+                        const qty = Number(item['qty']) || 1;
+                        
+                        await updateStock(idVenta, fromLocation.id, -qty);
+                        await addMovement({
+                            productId: idVenta,
+                            quantity: qty,
+                            type: MovementType.SALE,
+                            fromLocationId: fromLocation.id,
+                            relatedFile: file.name,
+                            price: precio,
+                            cost: products.find(p => p.id_venta === idVenta)?.cost
+                        });
+                        successCount++;
+                    }
+
+                    if (errors.length > 0) {
+                        addToast(`Ventas procesadas: ${successCount}. Errores:\n${errors.slice(0, 3).join('\n')}`, 'warning');
+                    } else {
+                        addToast(`Ventas desde '${file.name}' procesadas exitosamente (${successCount} registros).`, 'success');
+                    }
+                }
+            });
         } catch (error: any) {
              addToast(`Error procesando ventas: ${error.message}`, 'error');
         }
@@ -185,7 +201,7 @@ const MovementsPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card title="Carga Inicial (inventario_inicial.csv)"><FileUpload onFileProcess={processInitialInventory} title="Cargar Inventario Inicial" /></Card>
                 <Card title="Transferencias (tras_bod_...csv)"><FileUpload onFileProcess={processTransfers} title="Cargar Transferencia" /></Card>
-                <Card title="Ventas Diarias (lugar_...csv)"><FileUpload onFileProcess={processSales} title="Cargar Ventas" /></Card>
+                <Card title="Ventas Diarias (CSV)"><FileUpload onFileProcess={processSales} title="Cargar Ventas" /></Card>
             </div>
             
             <Card title="Últimos Movimientos">

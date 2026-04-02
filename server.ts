@@ -71,6 +71,8 @@ async function initDb() {
       const locs = await localDb.query('SELECT count(*) as count FROM locations');
       if (locs.rowCount === 0 || locs.rows.length === 0) {
         await localDb.query("INSERT INTO locations (id, name, type) VALUES ($1, $2, $3)", ['main_warehouse', 'Bodega Principal', 'MAIN_WAREHOUSE']);
+        await localDb.query("INSERT INTO locations (id, name, type) VALUES ($1, $2, $3)", ['alma_vlt', 'Alma_VLT', 'FIXED_STORE_PERMANENT']);
+        await localDb.query("INSERT INTO locations (id, name, type) VALUES ($1, $2, $3)", ['alma_dgo', 'Alma_Dgo', 'FIXED_STORE_PERMANENT']);
         await localDb.query("INSERT INTO users (id, username, password, role) VALUES ($1, $2, $3, $4)", ['user_1', 'admin', 'admin123', 'admin']);
       }
       return;

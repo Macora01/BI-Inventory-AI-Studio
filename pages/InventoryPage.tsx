@@ -305,9 +305,9 @@ const InventoryPage: React.FC = () => {
                 
                 for (const item of data) {
                     // Mapeo de columnas según el nuevo formato: fecha(DD-MM-AAA); lugar; id_venta; precio
-                    const fechaStr = (item as any)['fecha'] || (item as any)['fecha(DD-MM-AAA)'];
+                    const fechaStr = (item as any)['fecha'] || (item as any)['fecha(DD-MM-AAA)'] || (item as any)['timestamp'];
                     const lugarStr = (item as any)['lugar'];
-                    let idVenta = (item as any)['id_venta'];
+                    let idVenta = (item as any)['id_venta'] || (item as any)['cod_venta'];
                     let precio = Number((item as any)['precio']) || 0;
 
                     // Si hay una columna extra, es probable que el formato sea: fecha;lugar;id_transaccion;id_venta;precio
