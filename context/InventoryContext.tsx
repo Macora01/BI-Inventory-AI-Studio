@@ -19,6 +19,8 @@ interface InventoryContextType {
     clearProducts: () => Promise<void>;
     clearLocations: () => Promise<void>;
     clearUsers: () => Promise<void>;
+    backupData: () => Promise<any>;
+    restoreData: (data: any) => Promise<void>;
     
     // Funciones CRUD para Productos
     addProduct: (product: Product) => Promise<void>;
@@ -408,12 +410,44 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
             console.error('Error clearing users:', error);
         }
     }, [fetchData]);
+
+    const backupData = useCallback(async () => {
+        try {
+            const response = await fetch('/api/backup');
+            if (response.ok) {
+                return await response.json();
+            }
+            throw new Error('Error al obtener el respaldo');
+        } catch (err) {
+            console.error('Error backing up data:', err);
+            throw err;
+        }
+    }, []);
+
+    const restoreData = useCallback(async (data: any) => {
+        try {
+            const response = await fetch('/api/restore', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (response.ok) {
+                await fetchData();
+            } else {
+                throw new Error('Error al restaurar los datos');
+            }
+        } catch (err) {
+            console.error('Error restoring data:', err);
+            throw err;
+        }
+    }, [fetchData]);
     
     return (
         <InventoryContext.Provider value={{ 
             products, stock, movements, locations, users, 
             addMovement, updateStock, setInitialData, findProductById, clearAllData,
             clearProducts, clearLocations, clearUsers,
+            backupData, restoreData,
             addProduct, updateProduct, deleteProduct,
             addLocation, updateLocation, deleteLocation,
             addUser, updateUser, deleteUser,

@@ -816,45 +816,53 @@ const InventoryPage: React.FC = () => {
                         Seleccione el tipo de archivo que desea cargar. Asegúrese de que el formato coincida con los campos requeridos.
                     </p>
                     
-                    <div className="space-y-4">
-                        <div className="p-4 border border-accent rounded-lg">
-                            <h4 className="font-bold text-primary flex items-center mb-2">
-                                <Package size={18} className="mr-2" /> Inventario Inicial
-                            </h4>
-                            <p className="text-xs text-text-light mb-3">Carga masiva de productos y stock inicial.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="p-4 border border-accent rounded-lg flex flex-col justify-between">
+                            <div>
+                                <h4 className="font-bold text-primary flex items-center mb-2">
+                                    <Package size={18} className="mr-2" /> Inventario Inicial
+                                </h4>
+                                <p className="text-xs text-text-light mb-3">Carga masiva de productos y stock inicial.</p>
+                            </div>
                             <FileUpload 
                                 title="Subir Inventario Inicial"
                                 onFileProcess={processInitialInventory} 
                             />
                         </div>
 
-                        <div className="p-4 border border-accent rounded-lg">
-                            <h4 className="font-bold text-primary flex items-center mb-2">
-                                <RefreshCw size={18} className="mr-2" /> Transferencias
-                            </h4>
-                            <p className="text-xs text-text-light mb-3">Movimientos entre Bodega Central y Almacenes.</p>
+                        <div className="p-4 border border-accent rounded-lg flex flex-col justify-between">
+                            <div>
+                                <h4 className="font-bold text-primary flex items-center mb-2">
+                                    <RefreshCw size={18} className="mr-2" /> Transferencias
+                                </h4>
+                                <p className="text-xs text-text-light mb-3">Movimientos entre Bodega Central y Almacenes.</p>
+                            </div>
                             <FileUpload 
                                 title="Subir Transferencias"
                                 onFileProcess={processTransfers} 
                             />
                         </div>
 
-                        <div className="p-4 border border-accent rounded-lg">
-                            <h4 className="font-bold text-primary flex items-center mb-2">
-                                <ShoppingCart size={18} className="mr-2" /> Ventas Diarias (Multisitio)
-                            </h4>
-                            <p className="text-xs text-text-light mb-3">Registro de ventas por almacén. Formato: fecha;lugar;id_venta;precio</p>
+                        <div className="p-4 border border-accent rounded-lg flex flex-col justify-between">
+                            <div>
+                                <h4 className="font-bold text-primary flex items-center mb-2">
+                                    <ShoppingCart size={18} className="mr-2" /> Ventas Diarias
+                                </h4>
+                                <p className="text-xs text-text-light mb-3">Registro de ventas por almacén. Formato: fecha;lugar;id_venta;precio</p>
+                            </div>
                             <FileUpload 
                                 title="Subir Ventas"
                                 onFileProcess={processSales} 
                             />
                         </div>
 
-                        <div className="p-4 border border-accent rounded-lg bg-gray-50">
-                            <h4 className="font-bold text-primary flex items-center mb-2">
-                                <Camera size={18} className="mr-2" /> Subida Masiva de Fotos
-                            </h4>
-                            <p className="text-xs text-text-light mb-3">Sube múltiples fotos de productos de una vez. Los archivos deben llamarse como el ID de Fábrica.</p>
+                        <div className="p-4 border border-accent rounded-lg bg-gray-50 flex flex-col justify-between">
+                            <div>
+                                <h4 className="font-bold text-primary flex items-center mb-2">
+                                    <Camera size={18} className="mr-2" /> Subida Masiva de Fotos
+                                </h4>
+                                <p className="text-xs text-text-light mb-3">Sube múltiples fotos de productos de una vez. Los archivos deben llamarse como el ID de Fábrica.</p>
+                            </div>
                             <BulkImageUpload onSuccess={() => setImageRefreshKey(Date.now())} />
                         </div>
                     </div>

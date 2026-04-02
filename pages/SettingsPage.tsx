@@ -4,7 +4,7 @@ import Button from '../components/Button';
 import { useInventory } from '../context/InventoryContext';
 import { Location, User, LocationType, LOCATION_TYPE_MAP } from '../types';
 import Modal from '../components/Modal';
-import { Edit, Trash2, Database, CheckCircle2, XCircle, RefreshCw, AlertTriangle, Upload, Image as ImageIcon } from 'lucide-react';
+import { Edit, Trash2, Database, CheckCircle2, XCircle, RefreshCw, AlertTriangle, Upload, Image as ImageIcon, Download, FileUp } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 
 const SettingsPage: React.FC = () => {
@@ -12,6 +12,7 @@ const SettingsPage: React.FC = () => {
         locations, addLocation, updateLocation, deleteLocation,
         users, addUser, updateUser, deleteUser,
         clearAllData, clearProducts, clearLocations, clearUsers,
+        backupData, restoreData,
         dbStatus, checkHealth, error, loading
     } = useInventory();
     const { addToast } = useToast();
@@ -84,6 +85,48 @@ const SettingsPage: React.FC = () => {
     const handleCancelClear = () => {
         setIsConfirmingClear(false);
         addToast('La eliminación de datos ha sido cancelada.', 'info');
+    };
+
+    const handleDownloadBackup = async () => {
+        try {
+            const data = await backupData();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `respaldo_inventario_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            addToast('Respaldo descargado con éxito.', 'success');
+        } catch (err) {
+            addToast('Error al generar el respaldo.', 'error');
+        }
+    };
+
+    const handleRestoreBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!window.confirm('¿Está seguro de restaurar los datos? Esto SOBREESCRIBIRÁ todos los datos actuales.')) {
+            e.target.value = '';
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const content = event.target?.result as string;
+                const data = JSON.parse(content);
+                await restoreData(data);
+                addToast('Datos restaurados con éxito.', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } catch (err) {
+                addToast('Error al restaurar el archivo. Asegúrese de que sea un JSON válido.', 'error');
+            }
+        };
+        reader.readAsText(file);
     };
 
     const handleLogoUpload = async () => {
@@ -308,8 +351,38 @@ const SettingsPage: React.FC = () => {
             </Card>
 
             {/* Gestión de Datos */}
-            <Card title="Gestión de Datos">
+            <Card title="Gestión de Datos (Respaldo y Limpieza)">
                 <div className="space-y-6 p-4">
+                    {/* Respaldo y Restauración */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-accent pb-6">
+                        <div className="p-4 bg-primary bg-opacity-5 rounded-lg border border-primary border-opacity-20">
+                            <h4 className="font-bold text-primary flex items-center mb-2">
+                                <Download size={18} className="mr-2" /> Exportar Respaldo
+                            </h4>
+                            <p className="text-xs text-text-light mb-4">Descarga un archivo JSON con todos los productos, stock, movimientos, ubicaciones y usuarios.</p>
+                            <Button onClick={handleDownloadBackup} className="w-full flex items-center justify-center gap-2">
+                                <Download size={16} /> Descargar Archivo de Respaldo
+                            </Button>
+                        </div>
+                        <div className="p-4 bg-secondary bg-opacity-5 rounded-lg border border-secondary border-opacity-20">
+                            <h4 className="font-bold text-secondary flex items-center mb-2">
+                                <FileUp size={18} className="mr-2" /> Restaurar Respaldo
+                            </h4>
+                            <p className="text-xs text-text-light mb-4">Carga un archivo de respaldo previamente descargado para restaurar el sistema completo.</p>
+                            <div className="relative">
+                                <input 
+                                    type="file" 
+                                    accept=".json" 
+                                    onChange={handleRestoreBackup}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                />
+                                <Button variant="secondary" className="w-full flex items-center justify-center gap-2">
+                                    <FileUp size={16} /> Seleccionar Archivo y Restaurar
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Limpiar Productos */}
                     <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-accent pb-4">
                         <div className="text-left">

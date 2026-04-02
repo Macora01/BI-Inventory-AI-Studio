@@ -507,6 +507,85 @@ app.delete('/api/users/:id', async (req, res) => {
   }
 });
 
+// --- BACKUP & RESTORE ---
+
+app.get('/api/backup', async (req, res) => {
+  try {
+    const products = await query('SELECT * FROM products');
+    const stock = await query('SELECT * FROM stock');
+    const movements = await query('SELECT * FROM movements');
+    const locations = await query('SELECT * FROM locations');
+    const users = await query('SELECT * FROM users');
+
+    const backupData = {
+      products: products.rows,
+      stock: stock.rows,
+      movements: movements.rows,
+      locations: locations.rows,
+      users: users.rows,
+      version: '1.0',
+      timestamp: new Date().toISOString()
+    };
+
+    res.json(backupData);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post('/api/restore', async (req, res) => {
+  const { products, stock, movements, locations, users } = req.body;
+  try {
+    // Limpiar todo primero
+    await query('DELETE FROM movements');
+    await query('DELETE FROM stock');
+    await query('DELETE FROM products');
+    await query('DELETE FROM locations');
+    await query('DELETE FROM users');
+
+    // Restaurar Ubicaciones
+    for (const l of locations) {
+      await query('INSERT INTO locations (id, name, type) VALUES ($1, $2, $3)', [l.id, l.name, l.type]);
+    }
+
+    // Restaurar Productos
+    for (const p of products) {
+      await query(
+        'INSERT INTO products (id_venta, id_fabrica, description, price, cost, min_stock) VALUES ($1, $2, $3, $4, $5, $6)',
+        [p.id_venta, p.id_fabrica, p.description, p.price, p.cost, p.min_stock]
+      );
+    }
+
+    // Restaurar Stock
+    for (const s of stock) {
+      await query(
+        'INSERT INTO stock (productId, locationId, quantity) VALUES ($1, $2, $3)',
+        [s.productId, s.locationId, s.quantity]
+      );
+    }
+
+    // Restaurar Movimientos
+    for (const m of movements) {
+      await query(
+        'INSERT INTO movements (id, productId, quantity, type, fromLocationId, toLocationId, timestamp, relatedFile, price, cost) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+        [m.id, m.productId, m.quantity, m.type, m.fromLocationId, m.toLocationId, m.timestamp, m.relatedFile, m.price, m.cost]
+      );
+    }
+
+    // Restaurar Usuarios
+    for (const u of users) {
+      await query(
+        'INSERT INTO users (id, username, password, role) VALUES ($1, $2, $3, $4)',
+        [u.id, u.username, u.password, u.role]
+      );
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 // --- CLEAR DATA ENDPOINTS ---
 
 app.post('/api/clear/products', async (req, res) => {
