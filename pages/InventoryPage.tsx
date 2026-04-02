@@ -35,6 +35,7 @@ const InventoryPage: React.FC = () => {
     const [isAdjustmentModalOpen, setIsAdjustmentModalOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
+    const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
     const [qrScannerTarget, setQRScannerTarget] = useState<'search' | 'product_id' | 'factory_id'>('search');
     
     // Estado para Producto seleccionado (Edición o Nuevo)
@@ -501,6 +502,16 @@ const InventoryPage: React.FC = () => {
                                         <td className="px-4 py-4 text-right">
                                             <div className="flex justify-end space-x-1">
                                                 <button 
+                                                    onClick={() => {
+                                                        setSelectedProduct(product);
+                                                        setIsAnalysisModalOpen(true);
+                                                    }}
+                                                    title="Análisis de Stock"
+                                                    className="p-1 text-primary hover:bg-primary hover:bg-opacity-10 rounded"
+                                                >
+                                                    <Info size={18} />
+                                                </button>
+                                                <button 
                                                     onClick={() => handleOpenAdjustment(product.id_venta, 'ADD')}
                                                     title="Aumentar Stock"
                                                     className="p-1 text-success hover:bg-success hover:bg-opacity-10 rounded"
@@ -544,6 +555,57 @@ const InventoryPage: React.FC = () => {
                     </table>
                 </div>
             </Card>
+
+            {/* Modal de Análisis de Producto */}
+            <Modal 
+                isOpen={isAnalysisModalOpen} 
+                onClose={() => setIsAnalysisModalOpen(false)} 
+                title={`Análisis de Stock: ${selectedProduct?.description || ''}`}
+            >
+                <div className="space-y-6">
+                    <div className="flex items-center space-x-4 p-4 bg-accent bg-opacity-10 rounded-lg">
+                        <ProductImage 
+                            factoryId={selectedProduct?.id_fabrica || ''} 
+                            alt={selectedProduct?.description || ''} 
+                            className="w-20 h-20 shadow-sm"
+                            refreshKey={imageRefreshKey}
+                        />
+                        <div>
+                            <h3 className="font-bold text-lg text-primary">{selectedProduct?.description}</h3>
+                            <p className="text-sm text-text-light">Código Venta: <span className="font-mono">{selectedProduct?.id_venta}</span></p>
+                            <p className="text-sm text-text-light">Código Fábrica: <span className="font-mono">{selectedProduct?.id_fabrica}</span></p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3">
+                        <h4 className="font-bold text-primary border-b border-accent pb-2">Distribución por Ubicación</h4>
+                        <div className="grid grid-cols-1 gap-2">
+                            {locations.map(loc => {
+                                const qty = getStockForProductAndLocation(selectedProduct?.id_venta || '', loc.id);
+                                if (qty === 0) return null;
+                                return (
+                                    <div key={loc.id} className="flex justify-between items-center p-3 bg-white border border-accent rounded-md shadow-sm">
+                                        <div className="flex items-center">
+                                            <div className="w-2 h-2 rounded-full bg-primary mr-3"></div>
+                                            <span className="font-medium text-text-main">{loc.name}</span>
+                                        </div>
+                                        <span className="text-lg font-bold text-primary">{qty} uds.</span>
+                                    </div>
+                                );
+                            })}
+                            {stock.filter(s => s.productId === selectedProduct?.id_venta && s.quantity > 0).length === 0 && (
+                                <div className="text-center py-4 text-text-light italic">
+                                    No hay stock disponible en ninguna ubicación.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end pt-4">
+                        <Button onClick={() => setIsAnalysisModalOpen(false)}>Cerrar</Button>
+                    </div>
+                </div>
+            </Modal>
 
             {/* Modal de Producto (Nuevo/Editar) */}
             <Modal 

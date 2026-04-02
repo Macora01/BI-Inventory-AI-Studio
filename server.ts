@@ -70,9 +70,14 @@ async function initDb() {
       // Inicializar datos por defecto si están vacíos
       const locs = await localDb.query('SELECT count(*) as count FROM locations');
       if (locs.rowCount === 0 || locs.rows.length === 0) {
-        await localDb.query("INSERT INTO locations (id, name, type) VALUES ($1, $2, $3)", ['main_warehouse', 'Bodega Principal', 'MAIN_WAREHOUSE']);
+        await localDb.query("INSERT INTO locations (id, name, type) VALUES ($1, $2, $3)", ['bod_prin', 'Bod_Prin', 'MAIN_WAREHOUSE']);
         await localDb.query("INSERT INTO locations (id, name, type) VALUES ($1, $2, $3)", ['alma_vlt', 'Alma_VLT', 'FIXED_STORE_PERMANENT']);
         await localDb.query("INSERT INTO locations (id, name, type) VALUES ($1, $2, $3)", ['alma_dgo', 'Alma_Dgo', 'FIXED_STORE_PERMANENT']);
+        await localDb.query("INSERT INTO locations (id, name, type) VALUES ($1, $2, $3)", ['alma_lin', 'Alma_Lin', 'INDIRECT_STORE']);
+        await localDb.query("INSERT INTO locations (id, name, type) VALUES ($1, $2, $3)", ['alma_dom', 'Alma_Dom', 'INDIRECT_STORE']);
+        await localDb.query("INSERT INTO locations (id, name, type) VALUES ($1, $2, $3)", ['alma_mil', 'Alma_Mil', 'INDIRECT_STORE']);
+        await localDb.query("INSERT INTO locations (id, name, type) VALUES ($1, $2, $3)", ['alma_ald', 'Alma_Ald', 'INDIRECT_STORE']);
+        await localDb.query("INSERT INTO locations (id, name, type) VALUES ($1, $2, $3)", ['alma_cam', 'Alma_Cam', 'INDIRECT_STORE']);
         await localDb.query("INSERT INTO users (id, username, password, role) VALUES ($1, $2, $3, $4)", ['user_1', 'admin', 'admin123', 'admin']);
       }
       return;
@@ -158,7 +163,14 @@ async function initDb() {
     // Datos iniciales si las tablas están vacías
     const locationsCheck = await client.query('SELECT count(*) as count FROM locations');
     if (parseInt(locationsCheck.rows[0].count) === 0) {
-      await client.query("INSERT INTO locations (id, name, type) VALUES ('main_warehouse', 'Bodega Principal', 'MAIN_WAREHOUSE')");
+      await client.query("INSERT INTO locations (id, name, type) VALUES ('bod_prin', 'Bod_Prin', 'MAIN_WAREHOUSE')");
+      await client.query("INSERT INTO locations (id, name, type) VALUES ('alma_vlt', 'Alma_VLT', 'FIXED_STORE_PERMANENT')");
+      await client.query("INSERT INTO locations (id, name, type) VALUES ('alma_dgo', 'Alma_Dgo', 'FIXED_STORE_PERMANENT')");
+      await client.query("INSERT INTO locations (id, name, type) VALUES ('alma_lin', 'Alma_Lin', 'INDIRECT_STORE')");
+      await client.query("INSERT INTO locations (id, name, type) VALUES ('alma_dom', 'Alma_Dom', 'INDIRECT_STORE')");
+      await client.query("INSERT INTO locations (id, name, type) VALUES ('alma_mil', 'Alma_Mil', 'INDIRECT_STORE')");
+      await client.query("INSERT INTO locations (id, name, type) VALUES ('alma_ald', 'Alma_Ald', 'INDIRECT_STORE')");
+      await client.query("INSERT INTO locations (id, name, type) VALUES ('alma_cam', 'Alma_Cam', 'INDIRECT_STORE')");
     }
 
     const usersCheck = await client.query('SELECT count(*) as count FROM users');

@@ -1,7 +1,7 @@
 [
   {
-    "id": "main_warehouse",
-    "name": "Bodega Principal",
+    "id": "bod_prin",
+    "name": "Bod_Prin",
     "type": "MAIN_WAREHOUSE"
   },
   {
@@ -13,5 +13,30 @@
     "id": "alma_dgo",
     "name": "Alma_Dgo",
     "type": "FIXED_STORE_PERMANENT"
+  },
+  {
+    "id": "alma_lin",
+    "name": "Alma_Lin",
+    "type": "INDIRECT_STORE"
+  },
+  {
+    "id": "alma_dom",
+    "name": "Alma_Dom",
+    "type": "INDIRECT_STORE"
+  },
+  {
+    "id": "alma_mil",
+    "name": "Alma_Mil",
+    "type": "INDIRECT_STORE"
+  },
+  {
+    "id": "alma_ald",
+    "name": "Alma_Ald",
+    "type": "INDIRECT_STORE"
+  },
+  {
+    "id": "alma_cam",
+    "name": "Alma_Cam",
+    "type": "INDIRECT_STORE"
   }
 ]

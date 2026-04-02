@@ -227,7 +227,17 @@ const MovementsPage: React.FC = () => {
                                         {product ? `${product.description} (${m.productId})` : m.productId}
                                     </td>
                                     <td className="px-6 py-4">{MOVEMENT_TYPE_MAP[m.type] || m.type}</td>
-                                    <td className="px-6 py-4 text-right">{m.quantity}</td>
+                                    <td className="px-6 py-4">
+                                        <span className={`font-medium ${
+                                            m.type === MovementType.SALE || m.type === MovementType.TRANSFER_OUT || (m.type === MovementType.ADJUSTMENT && m.fromLocationId && !m.toLocationId)
+                                                ? 'text-danger' 
+                                                : 'text-success'
+                                        }`}>
+                                            {m.type === MovementType.SALE || m.type === MovementType.TRANSFER_OUT || (m.type === MovementType.ADJUSTMENT && m.fromLocationId && !m.toLocationId)
+                                                ? `-${m.quantity}` 
+                                                : `+${m.quantity}`}
+                                        </span>
+                                    </td>
                                     <td className="px-6 py-4">{locations.find(l => l.id === m.fromLocationId)?.name || 'N/A'}</td>
                                     <td className="px-6 py-4">{locations.find(l => l.id === m.toLocationId)?.name || 'N/A'}</td>
                                 </tr>
