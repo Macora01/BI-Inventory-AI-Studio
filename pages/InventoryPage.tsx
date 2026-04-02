@@ -307,8 +307,16 @@ const InventoryPage: React.FC = () => {
                     // Mapeo de columnas según el nuevo formato: fecha(DD-MM-AAA); lugar; id_venta; precio
                     const fechaStr = (item as any)['fecha'] || (item as any)['fecha(DD-MM-AAA)'];
                     const lugarStr = (item as any)['lugar'];
-                    const idVenta = (item as any)['id_venta'];
-                    const precio = Number((item as any)['precio']) || 0;
+                    let idVenta = (item as any)['id_venta'];
+                    let precio = Number((item as any)['precio']) || 0;
+
+                    // Si hay una columna extra, es probable que el formato sea: fecha;lugar;id_transaccion;id_venta;precio
+                    // pero el header solo tenga 4 columnas. En ese caso, id_venta está en 'precio' y precio está en '__parsed_extra'
+                    const extra = (item as any)['__parsed_extra'];
+                    if (extra && extra.length === 1) {
+                        idVenta = (item as any)['precio'];
+                        precio = Number(extra[0]) || 0;
+                    }
 
                     if (!idVenta || !lugarStr) continue;
                     
@@ -796,8 +804,8 @@ const InventoryPage: React.FC = () => {
                             <li><strong>Transferencias:</strong> sitio_inicial, sitio_final, id_venta, qty <br/>
                                 <span className="text-[9px] text-text-light italic">(Ej: Bod_Prin, Alma_VLT, PROD01, 1)</span>
                             </li>
-                            <li><strong>Ventas:</strong> fecha(DD-MM-AAA); lugar; id_venta; precio <br/>
-                                <span className="text-[9px] text-text-light italic">(Ej: 31-03-2024; Alma_VLT; VENTA01; 100)</span>
+                            <li><strong>Ventas:</strong> fecha; lugar; [id_transaccion]; id_venta; precio <br/>
+                                <span className="text-[9px] text-text-light italic">(Ej: 31-03-2024; Alma_VLT; 343; VENTA01; 100)</span>
                             </li>
                         </ul>
                     </div>
