@@ -59,6 +59,8 @@ const InventoryPage: React.FC = () => {
     // Estado para edición rápida en tabla
     const [editingCell, setEditingCell] = useState<{ productId: string, locationId: string } | null>(null);
     const [editValue, setEditValue] = useState<string>('');
+    const [editingMinStock, setEditingMinStock] = useState<string | null>(null);
+    const [minStockEditValue, setMinStockEditValue] = useState<string>('');
 
     // useMemo para filtrar productos solo cuando la lista de productos o el término de búsqueda cambian.
     const filteredProducts = useMemo(() => {
@@ -217,6 +219,27 @@ const InventoryPage: React.FC = () => {
             addToast('Error al actualizar stock.', 'error');
         } finally {
             setEditingCell(null);
+        }
+    };
+
+    /**
+     * Maneja la edición rápida de stock mínimo directamente en la tabla.
+     */
+    const handleMinStockEdit = async (productId: string, newValue: number) => {
+        const product = products.find(p => p.id_venta === productId);
+        if (!product || product.minStock === newValue) {
+            setEditingMinStock(null);
+            return;
+        }
+
+        try {
+            await updateProduct({ ...product, minStock: newValue });
+            addToast('Stock mínimo actualizado.', 'success');
+        } catch (err) {
+            console.error('Error al actualizar stock mínimo:', err);
+            addToast('Error al actualizar stock mínimo.', 'error');
+        } finally {
+            setEditingMinStock(null);
         }
     };
 
@@ -474,7 +497,11 @@ const InventoryPage: React.FC = () => {
                                     <th key={loc.id} scope="col" className="px-4 py-3 text-center">{loc.name}</th>
                                 ))}
                                 <th scope="col" className="px-4 py-3 text-center">Total</th>
-                                <th scope="col" className="px-4 py-3 text-center">Mín.</th>
+                                <th scope="col" className="px-4 py-3 text-center">
+                                    <div className="flex items-center justify-center">
+                                        Mín. <Edit size={12} className="ml-1 opacity-50" />
+                                    </div>
+                                </th>
                                 <th scope="col" className="px-4 py-3 text-right">Acciones</th>
                             </tr>
                         </thead>
@@ -581,7 +608,30 @@ const InventoryPage: React.FC = () => {
                                             totalStock === (product.minStock ?? 2) ? 'bg-yellow-200 text-yellow-900' : 
                                             'bg-green-200 text-green-900'
                                         }`}>{totalStock}</td>
-                                        <td className="px-4 py-4 text-center text-text-light">{product.minStock ?? 2}</td>
+                                        <td 
+                                            className="px-4 py-4 text-center cursor-pointer hover:bg-accent hover:bg-opacity-10 transition-colors"
+                                            onClick={() => {
+                                                setEditingMinStock(product.id_venta);
+                                                setMinStockEditValue((product.minStock ?? 2).toString());
+                                            }}
+                                        >
+                                            {editingMinStock === product.id_venta ? (
+                                                <input
+                                                    autoFocus
+                                                    type="number"
+                                                    className="w-16 p-1 border border-primary rounded text-center outline-none"
+                                                    value={minStockEditValue}
+                                                    onChange={(e) => setMinStockEditValue(e.target.value)}
+                                                    onBlur={() => handleMinStockEdit(product.id_venta, parseInt(minStockEditValue) || 0)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') handleMinStockEdit(product.id_venta, parseInt(minStockEditValue) || 0);
+                                                        if (e.key === 'Escape') setEditingMinStock(null);
+                                                    }}
+                                                />
+                                            ) : (
+                                                <span className="text-text-light font-medium">{product.minStock ?? 2}</span>
+                                            )}
+                                        </td>
                                         <td className="px-4 py-4 text-right">
                                             <div className="flex justify-end space-x-1">
                                                 <button 
@@ -804,9 +854,9 @@ const InventoryPage: React.FC = () => {
                                 required
                                 min="0"
                                 className="mt-1 block w-full p-2 border border-accent rounded-md bg-white"
-                                value={selectedProduct?.minStock || ''}
-                                placeholder="0"
-                                onChange={(e) => setSelectedProduct(prev => prev ? { ...prev, minStock: Number(e.target.value) } : null)}
+                                value={selectedProduct?.minStock ?? ''}
+                                placeholder="Ej: 5"
+                                onChange={(e) => setSelectedProduct(prev => prev ? { ...prev, minStock: e.target.value === '' ? undefined : Number(e.target.value) } : null)}
                             />
                         </div>
                         {!isEditing && (
