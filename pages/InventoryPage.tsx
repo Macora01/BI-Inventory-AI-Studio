@@ -56,6 +56,10 @@ const InventoryPage: React.FC = () => {
         type: 'ADD' as 'ADD' | 'REMOVE'
     });
 
+    // Estado para edición rápida en tabla
+    const [editingCell, setEditingCell] = useState<{ productId: string, locationId: string } | null>(null);
+    const [editValue, setEditValue] = useState<string>('');
+
     // useMemo para filtrar productos solo cuando la lista de productos o el término de búsqueda cambian.
     const filteredProducts = useMemo(() => {
         if (!searchTerm) {
@@ -183,6 +187,37 @@ const InventoryPage: React.FC = () => {
         });
         
         setIsAdjustmentModalOpen(false);
+    };
+
+    /**
+     * Maneja la edición rápida de stock directamente en la tabla.
+     */
+    const handleInlineEdit = async (productId: string, locationId: string, newValue: number) => {
+        const currentQty = getStockForProductAndLocation(productId, locationId);
+        const diff = newValue - currentQty;
+        
+        if (diff === 0) {
+            setEditingCell(null);
+            return;
+        }
+
+        try {
+            await updateStock(productId, locationId, diff);
+            await addMovement({
+                productId,
+                quantity: Math.abs(diff),
+                type: MovementType.ADJUSTMENT,
+                fromLocationId: diff < 0 ? locationId : undefined,
+                toLocationId: diff > 0 ? locationId : undefined,
+                relatedFile: `Ajuste Rápido (Tabla)`
+            });
+            addToast('Stock actualizado correctamente.', 'success');
+        } catch (err) {
+            console.error('Error en ajuste rápido:', err);
+            addToast('Error al actualizar stock.', 'error');
+        } finally {
+            setEditingCell(null);
+        }
     };
 
     // --- LÓGICA DE IMPORTACIÓN CSV ---
@@ -477,7 +512,7 @@ const InventoryPage: React.FC = () => {
                                 const isLowStock = totalStock < (product.minStock ?? 2);
 
                                 return (
-                                    <tr key={product.id_venta} className={`bg-background-light border-b border-background hover:bg-gray-50 transition-colors ${isLowStock ? 'bg-red-50' : ''}`}>
+                                    <tr key={product.id_venta} className="bg-background-light border-b border-background hover:bg-gray-50 transition-colors">
                                         <td className="px-4 py-4">
                                             <ProductImage 
                                                 factoryId={product.id_fabrica} 
@@ -499,12 +534,53 @@ const InventoryPage: React.FC = () => {
                                                 </span>
                                             )}
                                         </td>
-                                        {locations.map(loc => (
-                                            <td key={loc.id} className="px-4 py-4 text-center">
-                                                {getStockForProductAndLocation(product.id_venta, loc.id)}
-                                            </td>
-                                        ))}
-                                        <td className={`px-4 py-4 text-center font-bold ${isLowStock ? 'text-danger' : ''}`}>{totalStock}</td>
+                                        {locations.map(loc => {
+                                            const qty = getStockForProductAndLocation(product.id_venta, loc.id);
+                                            const minStock = product.minStock ?? 2;
+                                            
+                                            // Indicador visual por celda
+                                            let cellBg = '';
+                                            if (qty < minStock) cellBg = 'bg-red-100 text-red-800';
+                                            else if (qty === minStock) cellBg = 'bg-yellow-100 text-yellow-800';
+                                            else if (qty > 0) cellBg = 'bg-green-100 text-green-800';
+
+                                            const isEditing = editingCell?.productId === product.id_venta && editingCell?.locationId === loc.id;
+
+                                            return (
+                                                <td 
+                                                    key={loc.id} 
+                                                    className={`px-4 py-4 text-center cursor-pointer transition-all duration-200 ${isEditing ? 'bg-white ring-2 ring-primary ring-inset' : cellBg}`}
+                                                    onClick={() => {
+                                                        if (!isEditing) {
+                                                            setEditingCell({ productId: product.id_venta, locationId: loc.id });
+                                                            setEditValue(qty.toString());
+                                                        }
+                                                    }}
+                                                >
+                                                    {isEditing ? (
+                                                        <input
+                                                            autoFocus
+                                                            type="number"
+                                                            className="w-full bg-transparent text-center font-bold outline-none"
+                                                            value={editValue}
+                                                            onChange={(e) => setEditValue(e.target.value)}
+                                                            onBlur={() => handleInlineEdit(product.id_venta, loc.id, parseInt(editValue) || 0)}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') handleInlineEdit(product.id_venta, loc.id, parseInt(editValue) || 0);
+                                                                if (e.key === 'Escape') setEditingCell(null);
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <span className="font-bold">{qty}</span>
+                                                    )}
+                                                </td>
+                                            );
+                                        })}
+                                        <td className={`px-4 py-4 text-center font-bold transition-colors ${
+                                            totalStock < (product.minStock ?? 2) ? 'bg-red-200 text-red-900' : 
+                                            totalStock === (product.minStock ?? 2) ? 'bg-yellow-200 text-yellow-900' : 
+                                            'bg-green-200 text-green-900'
+                                        }`}>{totalStock}</td>
                                         <td className="px-4 py-4 text-center text-text-light">{product.minStock ?? 2}</td>
                                         <td className="px-4 py-4 text-right">
                                             <div className="flex justify-end space-x-1">
