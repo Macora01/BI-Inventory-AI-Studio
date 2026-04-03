@@ -16,6 +16,7 @@ export const MOVEMENT_TYPE_MAP: Record<MovementType, string> = {
     [MovementType.TRANSFER_OUT]: 'Salida por Traslado',
     [MovementType.SALE]: 'Venta',
     [MovementType.ADJUSTMENT]: 'Ajuste de Inventario',
+    [MovementType.PRODUCT_ADDITION]: 'Adición de Productos',
 };
 
 // Se definen datos iniciales por si no hay nada en localStorage.

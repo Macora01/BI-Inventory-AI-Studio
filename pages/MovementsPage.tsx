@@ -17,7 +17,7 @@ const normalizeName = (name: string) => name.toLowerCase().replace(/[\s_]/g, '')
  * También muestra un registro de los movimientos de inventario más recientes.
  */
 const MovementsPage: React.FC = () => {
-    const { addMovement, updateStock, setInitialData, locations, products, movements, stock } = useInventory();
+    const { addMovement, updateStock, setInitialData, locations, products, movements, stock, addProduct, updateProduct } = useInventory();
     const { addToast } = useToast();
 
     // Helper para obtener stock
@@ -66,6 +66,51 @@ const MovementsPage: React.FC = () => {
             addToast(`Error procesando archivo inicial: ${error.message}`, 'error');
         }
     }, [setInitialData, addToast]);
+
+    // Procesa el archivo CSV para AGREGAR productos (Append)
+    const processAppendInventory = useCallback(async (content: string, file: File) => {
+        try {
+            const parsedData = parseInitialInventoryCSV(content);
+            let addedCount = 0;
+            let updatedCount = 0;
+
+            for (const item of parsedData) {
+                const existingProduct = products.find(p => p.id_venta === item.id_venta);
+                
+                const product: Product = {
+                    id_venta: item.id_venta,
+                    price: item.price,
+                    cost: item.cost,
+                    id_fabrica: item.id_fabrica,
+                    description: item.description,
+                };
+
+                if (existingProduct) {
+                    await updateProduct(product);
+                    updatedCount++;
+                } else {
+                    await addProduct(product);
+                    addedCount++;
+                }
+
+                // Sumar stock a la bodega principal
+                const mainLoc = locations.find(l => l.id === 'main_warehouse' || l.id === 'loc_central') || locations[0];
+                if (mainLoc) {
+                    await updateStock(item.id_venta, mainLoc.id, item.qty);
+                    await addMovement({
+                        productId: item.id_venta,
+                        quantity: item.qty,
+                        type: MovementType.PRODUCT_ADDITION,
+                        toLocationId: mainLoc.id,
+                        relatedFile: file.name
+                    });
+                }
+            }
+            addToast(`Adición procesada: ${addedCount} nuevos, ${updatedCount} actualizados.`, 'success');
+        } catch (error: any) {
+            addToast(`Error procesando adición: ${error.message}`, 'error');
+        }
+    }, [products, addProduct, updateProduct, updateStock, addMovement, locations, addToast]);
 
     // Procesa el archivo CSV de transferencias.
     const processTransfers = useCallback(async (content: string, file: File) => {
@@ -198,10 +243,11 @@ const MovementsPage: React.FC = () => {
     return (
         <div className="space-y-6">
             <h2 className="text-3xl font-bold text-primary">Cargar Movimientos</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card title="Carga Inicial (inventario_inicial.csv)"><FileUpload onFileProcess={processInitialInventory} title="Cargar Inventario Inicial" /></Card>
-                <Card title="Transferencias (tras_bod_...csv)"><FileUpload onFileProcess={processTransfers} title="Cargar Transferencia" /></Card>
-                <Card title="Ventas Diarias (CSV)"><FileUpload onFileProcess={processSales} title="Cargar Ventas" /></Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <Card title="Carga Inicial (Sobrescribe Stock)"><FileUpload onFileProcess={processInitialInventory} title="Cargar Inventario Inicial" /></Card>
+                <Card title="Adición de Productos (Suma Stock)"><FileUpload onFileProcess={processAppendInventory} title="Agregar Productos" /></Card>
+                <Card title="Transferencias (Traslados)"><FileUpload onFileProcess={processTransfers} title="Cargar Transferencia" /></Card>
+                <Card title="Ventas Diarias (Ventas)"><FileUpload onFileProcess={processSales} title="Cargar Ventas" /></Card>
             </div>
             
             <Card title="Últimos Movimientos">

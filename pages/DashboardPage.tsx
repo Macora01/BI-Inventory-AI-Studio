@@ -49,6 +49,14 @@ const DashboardPage: React.FC = () => {
         if (!Array.isArray(stock)) return 0;
         return stock.reduce((sum, s) => sum + s.quantity, 0);
     }, [stock]);
+
+    // Calcula el total de unidades vendidas a la fecha.
+    const totalSoldUnits = useMemo(() => {
+        if (!Array.isArray(movements)) return 0;
+        return movements
+            .filter(m => m.type === 'SALE')
+            .reduce((sum, m) => sum + m.quantity, 0);
+    }, [movements]);
     
     // Calcula la cantidad de productos con bajo stock.
     const lowStockItems = useMemo(() => {
@@ -264,11 +272,13 @@ const DashboardPage: React.FC = () => {
                 </Card>
             ) : (
                 <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <StatCard icon={DollarSign} title="Valor (Costo)" value={`$${inventoryValue.toLocaleString('es-CL')}`} />
                         <StatCard icon={TrendingUp} title="Margen Potencial" value={`$${potentialMargin.toLocaleString('es-CL')}`} variant="success" />
                         <StatCard icon={Activity} title="Salud Inventario" value={`${healthScore}%`} variant={healthScore > 80 ? 'success' : healthScore > 50 ? 'warning' : 'danger'} />
                         <StatCard icon={AlertTriangle} title="Items Bajo Stock" value={lowStockItems.toLocaleString('es-CL')} variant="danger" />
+                        <StatCard icon={Package} title="Unidades en Inventario" value={totalUnits.toLocaleString('es-CL')} />
+                        <StatCard icon={ShoppingCart} title="Unidades Vendidas" value={totalSoldUnits.toLocaleString('es-CL')} variant="success" />
                     </div>
 
                     {/* Fila 1: Tendencia y Alertas */}
