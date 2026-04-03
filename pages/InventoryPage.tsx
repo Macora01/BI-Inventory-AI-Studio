@@ -62,6 +62,16 @@ const InventoryPage: React.FC = () => {
     const [editingMinStock, setEditingMinStock] = useState<string | null>(null);
     const [minStockEditValue, setMinStockEditValue] = useState<string>('');
 
+    // Estado para el motivo obligatorio en edición rápida
+    const [isInlineReasonModalOpen, setIsInlineReasonModalOpen] = useState(false);
+    const [inlineAdjustmentData, setInlineAdjustmentData] = useState<{
+        productId: string;
+        locationId: string;
+        newValue: number;
+        currentQty: number;
+        reason: string;
+    } | null>(null);
+
     // useMemo para filtrar productos solo cuando la lista de productos o el término de búsqueda cambian.
     const filteredProducts = useMemo(() => {
         if (!searchTerm) {
@@ -193,8 +203,9 @@ const InventoryPage: React.FC = () => {
 
     /**
      * Maneja la edición rápida de stock directamente en la tabla.
+     * Ahora abre un modal para pedir el motivo obligatorio.
      */
-    const handleInlineEdit = async (productId: string, locationId: string, newValue: number) => {
+    const handleInlineEdit = (productId: string, locationId: string, newValue: number) => {
         const currentQty = getStockForProductAndLocation(productId, locationId);
         const diff = newValue - currentQty;
         
@@ -202,6 +213,30 @@ const InventoryPage: React.FC = () => {
             setEditingCell(null);
             return;
         }
+
+        setInlineAdjustmentData({
+            productId,
+            locationId,
+            newValue,
+            currentQty,
+            reason: ''
+        });
+        setIsInlineReasonModalOpen(true);
+        setEditingCell(null);
+    };
+
+    /**
+     * Guarda el ajuste rápido después de proporcionar el motivo.
+     */
+    const handleSaveInlineAdjustment = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!inlineAdjustmentData || !inlineAdjustmentData.reason.trim()) {
+            addToast('El motivo es obligatorio.', 'error');
+            return;
+        }
+
+        const { productId, locationId, newValue, currentQty, reason } = inlineAdjustmentData;
+        const diff = newValue - currentQty;
 
         try {
             await updateStock(productId, locationId, diff);
@@ -211,14 +246,14 @@ const InventoryPage: React.FC = () => {
                 type: MovementType.ADJUSTMENT,
                 fromLocationId: diff < 0 ? locationId : undefined,
                 toLocationId: diff > 0 ? locationId : undefined,
-                relatedFile: `Ajuste Rápido (Tabla)`
+                relatedFile: `Ajuste Rápido (Tabla): ${reason}`
             });
             addToast('Stock actualizado correctamente.', 'success');
+            setIsInlineReasonModalOpen(false);
+            setInlineAdjustmentData(null);
         } catch (err) {
             console.error('Error en ajuste rápido:', err);
             addToast('Error al actualizar stock.', 'error');
-        } finally {
-            setEditingCell(null);
         }
     };
 
@@ -936,6 +971,52 @@ const InventoryPage: React.FC = () => {
                         <Button type="submit" variant={adjustmentData.type === 'ADD' ? 'primary' : 'danger'}>
                             {adjustmentData.type === 'ADD' ? 'Aumentar' : 'Disminuir'}
                         </Button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* Modal de Motivo para Ajuste Rápido */}
+            <Modal 
+                isOpen={isInlineReasonModalOpen} 
+                onClose={() => {
+                    setIsInlineReasonModalOpen(false);
+                    setInlineAdjustmentData(null);
+                }} 
+                title="Motivo del Ajuste"
+            >
+                <form onSubmit={handleSaveInlineAdjustment} className="space-y-4">
+                    <div className="p-3 bg-accent bg-opacity-20 rounded-md">
+                        <p className="text-sm text-text-main">
+                            Has cambiado el stock de <strong>{inlineAdjustmentData?.currentQty}</strong> a <strong>{inlineAdjustmentData?.newValue}</strong>.
+                        </p>
+                        <p className="text-xs text-text-light mt-1">
+                            Producto: {products.find(p => p.id_venta === inlineAdjustmentData?.productId)?.description}
+                        </p>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-text-main">Motivo del cambio (Obligatorio)</label>
+                        <textarea 
+                            autoFocus
+                            required
+                            placeholder="Ej: Error de conteo, producto dañado, ajuste de inventario..."
+                            className="mt-1 block w-full p-2 border border-accent rounded-md bg-white"
+                            rows={3}
+                            value={inlineAdjustmentData?.reason || ''}
+                            onChange={(e) => setInlineAdjustmentData(prev => prev ? { ...prev, reason: e.target.value } : null)}
+                        />
+                    </div>
+                    <div className="flex justify-end space-x-2 pt-2">
+                        <Button 
+                            type="button" 
+                            variant="secondary" 
+                            onClick={() => {
+                                setIsInlineReasonModalOpen(false);
+                                setInlineAdjustmentData(null);
+                            }}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button type="submit">Confirmar Ajuste</Button>
                     </div>
                 </form>
             </Modal>
