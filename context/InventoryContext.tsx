@@ -67,10 +67,14 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
     // ---- CARGA INICIAL DESDE LA API ----
     const fetchLogo = useCallback(async () => {
         try {
+            console.log('Fetching logo...');
             const res = await fetch('/api/settings/logo');
             if (res.ok) {
                 const data = await res.json();
+                console.log('Logo data received:', data.logo ? 'Base64 string' : 'null');
                 setLogo(data.logo);
+            } else {
+                console.error('Failed to fetch logo:', res.status);
             }
         } catch (err) {
             console.error('Error fetching logo:', err);

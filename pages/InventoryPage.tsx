@@ -75,6 +75,11 @@ const InventoryPage: React.FC = () => {
         return stockItem ? stockItem.quantity : 0;
     };
 
+    const currentSelectedProduct = useMemo(() => {
+        if (!selectedProduct) return null;
+        return products.find(p => p.id_venta === selectedProduct.id_venta) || selectedProduct;
+    }, [products, selectedProduct]);
+
     // Manejadores de Producto
     const handleOpenNewProduct = () => {
         setSelectedProduct({ id_venta: '', id_fabrica: '', description: '', price: 0, cost: 0, minStock: 2, initialStock: 0 });
@@ -131,6 +136,7 @@ const InventoryPage: React.FC = () => {
             });
             if (response.ok) {
                 setImageRefreshKey(Date.now());
+                await fetchData(); // Recargar datos para obtener la nueva imagen Base64
             } else {
                 addToast('Error al subir la imagen del producto.', 'error');
             }
@@ -561,20 +567,21 @@ const InventoryPage: React.FC = () => {
             <Modal 
                 isOpen={isAnalysisModalOpen} 
                 onClose={() => setIsAnalysisModalOpen(false)} 
-                title={`Análisis de Stock: ${selectedProduct?.description || ''}`}
+                title={`Análisis de Stock: ${currentSelectedProduct?.description || ''}`}
             >
                 <div className="space-y-6">
                     <div className="flex items-center space-x-4 p-4 bg-accent bg-opacity-10 rounded-lg">
                         <ProductImage 
-                            factoryId={selectedProduct?.id_fabrica || ''} 
-                            alt={selectedProduct?.description || ''} 
+                            factoryId={currentSelectedProduct?.id_fabrica || ''} 
+                            alt={currentSelectedProduct?.description || ''} 
                             className="w-20 h-20 shadow-sm"
                             refreshKey={imageRefreshKey}
+                            image={currentSelectedProduct?.image}
                         />
                         <div>
-                            <h3 className="font-bold text-lg text-primary">{selectedProduct?.description}</h3>
-                            <p className="text-sm text-text-light">Código Venta: <span className="font-mono">{selectedProduct?.id_venta}</span></p>
-                            <p className="text-sm text-text-light">Código Fábrica: <span className="font-mono">{selectedProduct?.id_fabrica}</span></p>
+                            <h3 className="font-bold text-lg text-primary">{currentSelectedProduct?.description}</h3>
+                            <p className="text-sm text-text-light">Código Venta: <span className="font-mono">{currentSelectedProduct?.id_venta}</span></p>
+                            <p className="text-sm text-text-light">Código Fábrica: <span className="font-mono">{currentSelectedProduct?.id_fabrica}</span></p>
                         </div>
                     </div>
 
@@ -617,10 +624,11 @@ const InventoryPage: React.FC = () => {
                 <div className="flex flex-col md:flex-row gap-6">
                     <div className="w-full md:w-1/3 flex flex-col items-center">
                         <ProductImage 
-                            factoryId={selectedProduct?.id_fabrica || ''} 
-                            alt={selectedProduct?.description || 'Producto'} 
+                            factoryId={currentSelectedProduct?.id_fabrica || ''} 
+                            alt={currentSelectedProduct?.description || 'Producto'} 
                             className="w-full aspect-square mb-4 shadow-md" 
                             refreshKey={imageRefreshKey}
+                            image={currentSelectedProduct?.image}
                         />
                         <div className="w-full space-y-2">
                             <label className="block text-[10px] font-medium text-text-light uppercase tracking-wider">Subir Foto</label>
@@ -631,7 +639,7 @@ const InventoryPage: React.FC = () => {
                                 className="block w-full text-[10px] text-text-main file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[10px] file:font-semibold file:bg-accent file:text-primary hover:file:bg-opacity-80"
                             />
                             <p className="text-[10px] text-text-light text-center italic">
-                                La imagen se guardará como <code className="bg-background p-0.5 rounded">{selectedProduct?.id_fabrica || 'id_fabrica'}.jpg</code>
+                                La imagen se guardará como <code className="bg-background p-0.5 rounded">{currentSelectedProduct?.id_fabrica || 'id_fabrica'}.jpg</code>
                             </p>
                         </div>
                     </div>

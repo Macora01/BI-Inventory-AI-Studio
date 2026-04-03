@@ -60,16 +60,56 @@ class LocalDB {
                 const rows = this.readTable('users');
                 return { rows, rowCount: rows.length };
             }
+            if (lowerText.includes('from settings')) {
+                const rows = this.readTable('settings');
+                const key = params[0];
+                const filtered = key ? rows.filter(r => r.key === key) : rows;
+                return { rows: filtered, rowCount: filtered.length };
+            }
         }
 
         if (lowerText.startsWith('insert into products') || lowerText.includes('on conflict (id_venta)')) {
-            const [id_venta, id_fabrica, description, price, cost, min_stock] = params;
+            const [id_venta, id_fabrica, description, price, cost, min_stock, image] = params;
             let products = this.readTable('products');
             const index = products.findIndex(p => p.id_venta === id_venta);
-            const newProduct = { id_venta, id_fabrica, description, price, cost, min_stock };
-            if (index >= 0) products[index] = newProduct;
+            const newProduct = { id_venta, id_fabrica, description, price, cost, min_stock, image };
+            if (index >= 0) products[index] = { ...products[index], ...newProduct };
             else products.push(newProduct);
             this.writeTable('products', products);
+            return { rows: [], rowCount: 1 };
+        }
+
+        if (lowerText.startsWith('update products')) {
+            if (lowerText.includes('set id_fabrica')) {
+                const [id_fabrica, description, price, cost, minStock, image, id] = params;
+                let products = this.readTable('products');
+                const index = products.findIndex(p => p.id_venta === id);
+                if (index >= 0) {
+                    products[index] = { ...products[index], id_fabrica, description, price, cost, min_stock: minStock, image };
+                    this.writeTable('products', products);
+                    return { rows: [], rowCount: 1 };
+                }
+            } else {
+                // Caso de actualización de solo imagen por factoryId
+                const [image, factoryId] = params;
+                let products = this.readTable('products');
+                const index = products.findIndex(p => p.id_fabrica === factoryId);
+                if (index >= 0) {
+                    products[index].image = image;
+                    this.writeTable('products', products);
+                    return { rows: [], rowCount: 1 };
+                }
+            }
+            return { rows: [], rowCount: 0 };
+        }
+
+        if (lowerText.startsWith('insert into settings')) {
+            const [key, value] = params;
+            let settings = this.readTable('settings');
+            const index = settings.findIndex(s => s.key === key);
+            if (index >= 0) settings[index].value = value;
+            else settings.push({ key, value });
+            this.writeTable('settings', settings);
             return { rows: [], rowCount: 1 };
         }
 
